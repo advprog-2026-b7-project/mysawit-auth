@@ -53,15 +53,3 @@ checkstyle {
     toolVersion = "10.12.5"
     isIgnoreFailures = false
 }
-
-sonar {
-    properties {
-        property("sonar.projectKey", "advprog-2026-b7-project_mysawit-auth")
-        property("sonar.organization", "adpro-kelompok-b7")
-        property("sonar.host.url", "https://sonarcloud.io")
-        property(
-            "sonar.coverage.jacoco.xmlReportPaths",
-            "build/reports/jacoco/test/jacocoTestReport.xml"
-        )
-    }
-}
