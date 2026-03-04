@@ -3,10 +3,10 @@ spring:
     name: mysawit-auth
 
   datasource:
-    url: jdbc:h2:mem:mysawitdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:postgresql://localhost:5432/mysawit_auth_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
