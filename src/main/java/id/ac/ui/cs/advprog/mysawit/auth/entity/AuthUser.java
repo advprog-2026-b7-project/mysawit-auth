@@ -31,6 +31,13 @@ public class AuthUser {
     @Column(nullable = false)
     private Role role;
 
+    @Column(nullable = true)
+    private String mandorCertificationNumber;
+
+    @ManyToOne
+    @JoinColumn(name = "mandor_id")
+    private AuthUser mandor;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AuthProvider authProvider;
