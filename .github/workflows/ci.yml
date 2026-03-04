@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "feat/auth-uc-a02"]
   pull_request:
     branches: ["main"]
 
