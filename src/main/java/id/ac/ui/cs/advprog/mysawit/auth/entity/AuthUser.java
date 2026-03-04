@@ -16,7 +16,7 @@ public class AuthUser {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    private UUID id;
 
     @Column(nullable = false)
     private String username;
@@ -26,6 +26,10 @@ public class AuthUser {
 
     @Column(nullable = true)
     private String password;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
