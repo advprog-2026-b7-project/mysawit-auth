@@ -1,22 +1,25 @@
 package id.ac.ui.cs.advprog.mysawit.auth.security;
 
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
-import id.ac.ui.cs.advprog.mysawit.auth.repository.AuthUserRepository;
+import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -24,12 +27,13 @@ import java.util.UUID;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final AuthUserRepository authUserRepository;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/api/auth/");
+        return path.equals("/api/auth/login")
+                || path.equals("/api/auth/register")
+                || path.equals("/api/auth/google-login");
     }
 
     @Override
@@ -38,25 +42,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        try {
+            String token = extractToken(request);
+            if (token != null && jwtTokenProvider.validateToken(token)
+                    && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-        String token = extractToken(request);
+                String userId = jwtTokenProvider.getUserIdFromToken(token);
+                String email = jwtTokenProvider.getEmailFromToken(token);
+                String role = jwtTokenProvider.getRoleFromToken(token);
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
+                AuthUser user = AuthUser.builder()
+                        .id(UUID.fromString(userId))
+                        .email(email)
+                        .role(Role.valueOf(role))
+                        .build();
 
-            String userId = jwtTokenProvider.getUserIdFromToken(token);
-            UUID uuid = UUID.fromString(userId);
-
-            Optional<AuthUser> userOpt = authUserRepository.findById(uuid);
-
-            if (userOpt.isPresent()) {
-
-                AuthUser user = userOpt.get();
+                List<SimpleGrantedAuthority> authorities =
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role));
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 user,
                                 null,
-                                Collections.emptyList()
+                                authorities
                         );
 
                 authentication.setDetails(
@@ -64,22 +72,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 .buildDetails(request)
                 );
 
-                SecurityContextHolder.getContext()
-                        .setAuthentication(authentication);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
+        } catch (Exception ex) {
+            System.out.println("JWT authentication error: " + ex.getMessage());
         }
-
         filterChain.doFilter(request, response);
     }
 
     private String extractToken(HttpServletRequest request) {
-
         String bearer = request.getHeader("Authorization");
-
         if (StringUtils.hasText(bearer) && bearer.startsWith("Bearer ")) {
             return bearer.substring(7);
         }
-
         return null;
     }
 }

@@ -1,23 +1,19 @@
 package id.ac.ui.cs.advprog.mysawit.auth.controller;
 
-import id.ac.ui.cs.advprog.mysawit.auth.dto.AuthResponse;
-import id.ac.ui.cs.advprog.mysawit.auth.dto.GoogleLoginRequest;
-import id.ac.ui.cs.advprog.mysawit.auth.dto.LoginRequest;
-import id.ac.ui.cs.advprog.mysawit.auth.dto.RegisterRequest;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.*;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AuthUserService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context
-        .SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
@@ -33,7 +29,8 @@ public class AuthUserController {
             @Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
         return ResponseEntity
-                .status(HttpStatus.CREATED).body(response);
+                .status(HttpStatus.CREATED)
+                .body(response);
     }
 
     @PostMapping("/login")
@@ -46,47 +43,45 @@ public class AuthUserController {
     @PostMapping("/google-login")
     public ResponseEntity<AuthResponse> googleLogin(
             @Valid @RequestBody GoogleLoginRequest request) {
-        AuthResponse response =
-                authService.googleLogin(request);
+        AuthResponse response = authService.googleLogin(request);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout() {
-        return ResponseEntity.ok(Map.of(
-                "message",
-                "Logout successful. Please discard your token."
-        ));
+        return ResponseEntity.ok(
+                Map.of(
+                        "message",
+                        "Logout successful. Please discard the token client-side."
+                )
+        );
     }
 
     @GetMapping("/me")
-    public ResponseEntity<Map<String, Object>>
-    getCurrentUser() {
+    public ResponseEntity<?> getCurrentUser() {
         Authentication authentication =
-                SecurityContextHolder.getContext()
-                        .getAuthentication();
-        if (authentication == null
-                || !(authentication.getPrincipal()
-                instanceof AuthUser)) {
+                SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Not authenticated"));
         }
-        AuthUser user = (AuthUser) authentication.getPrincipal();
-        return ResponseEntity.ok(Map.of(
-                "id", user.getId(),
-                "email", user.getEmail(),
-                "name", user.getUsername(),
-                "authProvider",
-                user.getAuthProvider().toString()
-        ));
-    }
-    @RestController
-    public class TestController {
 
-        @GetMapping("/test")
-        public String test() {
-            return "working";
+        Object principal = authentication.getPrincipal();
+
+        if (!(principal instanceof AuthUser user)) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Invalid authentication principal"));
         }
+
+        MeResponse response = MeResponse.builder()
+                .id(user.getId().toString())
+                .email(user.getEmail())
+                .username(user.getUsername())
+                .authProvider(user.getAuthProvider().toString())
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 }

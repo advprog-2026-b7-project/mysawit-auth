@@ -1,37 +1,15 @@
 services:
 
-  mysawit-auth-db:
-    image: postgres:15
-    container_name: mysawit-auth-db
-    env_file:
-      - .env
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   mysawit-auth:
     build: .
     container_name: mysawit-auth
-    depends_on:
-      - mysawit-auth-db
-
-    env_file:
-      - .env
 
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://mysawit-auth-db:5432/${POSTGRES_DB}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5435/mysawit_auth
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: mysawit-secret
+      JWT_EXPIRATION_MS: 3600000
 
     ports:
       - "8080:8080"
-
-volumes:
-  postgres_data:
