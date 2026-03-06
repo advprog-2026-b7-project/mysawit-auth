@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -43,6 +44,7 @@ public class AuthUserController {
     @PostMapping("/google-login")
     public ResponseEntity<AuthResponse> googleLogin(
             @Valid @RequestBody GoogleLoginRequest request) {
+        System.out.println("GOOGLE LOGIN HIT");
         AuthResponse response = authService.googleLogin(request);
         return ResponseEntity.ok(response);
     }
@@ -58,18 +60,15 @@ public class AuthUserController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser() {
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
+    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Not authenticated"));
         }
 
-        Object principal = authentication.getPrincipal();
-
-        if (!(principal instanceof AuthUser user)) {
+        if (!(authentication.getPrincipal() instanceof AuthUser user)) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid authentication principal"));

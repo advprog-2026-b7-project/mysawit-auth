@@ -29,54 +29,63 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        return path.equals("/api/auth/login")
-                || path.equals("/api/auth/register")
-                || path.equals("/api/auth/google-login");
-    }
-
-    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+
+        System.out.println("JWT FILTER RUNNING: " + request.getRequestURI());
+
         try {
+
             String token = extractToken(request);
-            if (token != null && jwtTokenProvider.validateToken(token)
-                    && SecurityContextHolder.getContext().getAuthentication() == null) {
+            System.out.println("TOKEN: " + token);
 
-                String userId = jwtTokenProvider.getUserIdFromToken(token);
-                String email = jwtTokenProvider.getEmailFromToken(token);
-                String role = jwtTokenProvider.getRoleFromToken(token);
+            if (token != null) {
 
-                AuthUser user = AuthUser.builder()
-                        .id(UUID.fromString(userId))
-                        .email(email)
-                        .role(Role.valueOf(role))
-                        .build();
+                boolean valid = jwtTokenProvider.validateToken(token);
+                System.out.println("TOKEN VALID: " + valid);
 
-                List<SimpleGrantedAuthority> authorities =
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                if (valid && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                user,
-                                null,
-                                authorities
-                        );
+                    String userId = jwtTokenProvider.getUserIdFromToken(token);
+                    String email = jwtTokenProvider.getEmailFromToken(token);
+                    String role = jwtTokenProvider.getRoleFromToken(token);
 
-                authentication.setDetails(
-                        new WebAuthenticationDetailsSource()
-                                .buildDetails(request)
-                );
+                    System.out.println("USER ID: " + userId);
+                    System.out.println("ROLE: " + role);
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    AuthUser user = AuthUser.builder()
+                            .id(UUID.fromString(userId))
+                            .email(email)
+                            .role(Role.valueOf(role))
+                            .build();
+
+                    List<SimpleGrantedAuthority> authorities =
+                            List.of(new SimpleGrantedAuthority("ROLE_" + role));
+
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    user,
+                                    null,
+                                    authorities
+                            );
+
+                    authentication.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request)
+                    );
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    System.out.println("AUTHENTICATION SET SUCCESSFULLY");
+                }
             }
+
         } catch (Exception ex) {
-            System.out.println("JWT authentication error: " + ex.getMessage());
+            ex.printStackTrace();   // IMPORTANT
         }
+
         filterChain.doFilter(request, response);
     }
 
