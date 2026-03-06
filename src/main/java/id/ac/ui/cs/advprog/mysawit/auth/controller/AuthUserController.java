@@ -1,9 +1,6 @@
 package id.ac.ui.cs.advprog.mysawit.auth.controller;
 
-import id.ac.ui.cs.advprog.mysawit.auth.dto.AuthResponse;
-import id.ac.ui.cs.advprog.mysawit.auth.dto.GoogleLoginRequest;
-import id.ac.ui.cs.advprog.mysawit.auth.dto.LoginRequest;
-import id.ac.ui.cs.advprog.mysawit.auth.dto.RegisterRequest;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.*;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AuthUserService;
 import jakarta.validation.Valid;
@@ -52,10 +49,13 @@ public class AuthUserController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, String>> logout() {
+    public ResponseEntity<Map<String, String>> logout(
+            @Valid @RequestBody LogoutRequest request) {
+
+        SecurityContextHolder.clearContext();
+
         return ResponseEntity.ok(Map.of(
-                "message",
-                "Logout successful. Please discard your token."
+                "message", "Logout successful"
         ));
     }
 
