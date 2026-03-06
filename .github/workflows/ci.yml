@@ -59,3 +59,4 @@ jobs:
             -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
