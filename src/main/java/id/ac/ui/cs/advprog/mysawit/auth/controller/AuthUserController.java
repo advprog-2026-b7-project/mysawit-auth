@@ -50,13 +50,14 @@ public class AuthUserController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, String>> logout() {
-        return ResponseEntity.ok(
-                Map.of(
-                        "message",
-                        "Logout successful. Please discard the token client-side."
-                )
-        );
+    public ResponseEntity<Map<String, String>> logout(
+            @Valid @RequestBody LogoutRequest request) {
+
+        SecurityContextHolder.clearContext();
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Logout successful"
+        ));
     }
 
     @GetMapping("/me")
