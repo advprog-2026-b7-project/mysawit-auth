@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.mysawit.auth.dto;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,6 +27,7 @@ public class RegisterRequest {
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
 
-    @NotBlank(message = "Role must be valid")
+    @NotNull(message = "Role is required")
+    @NotNull
     private Role role;
 }
