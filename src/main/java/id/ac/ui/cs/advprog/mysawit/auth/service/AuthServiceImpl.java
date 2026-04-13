@@ -19,8 +19,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password
         .PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.util.Collections;
+import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
 
 @Service
 @RequiredArgsConstructor
@@ -36,22 +39,24 @@ public class AuthServiceImpl implements AuthUserService {
     @Override
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
                     "Email is already registered"
             );
         }
 
         AuthUser user = AuthUser.builder()
                 .email(request.getEmail())
-                .password(
-                        passwordEncoder.encode(request.getPassword())
-                )
+                .password(passwordEncoder.encode(request.getPassword()))
                 .username(request.getName())
+                .role(request.getRole())
                 .build();
 
         user = userRepository.save(user);
         String token = jwtTokenProvider.generateToken(
-                user.getId().toString(), user.getEmail()
+                user.getId().toString(),
+                user.getEmail(),
+                user.getRole().name()
         );
 
         return AuthResponse.builder()
@@ -66,20 +71,25 @@ public class AuthServiceImpl implements AuthUserService {
     public AuthResponse login(LoginRequest request) {
         AuthUser user = userRepository
                 .findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
                         "Invalid email or password"
                 ));
 
         if (!passwordEncoder.matches(
                 request.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
                     "Invalid email or password"
             );
         }
 
         String token = jwtTokenProvider.generateToken(
-                user.getId().toString(), user.getEmail()
+                user.getId().toString(),
+                user.getEmail(),
+                user.getRole().name()
         );
+
         return AuthResponse.builder()
                 .token(token)
                 .email(user.getEmail())
@@ -105,7 +115,8 @@ public class AuthServiceImpl implements AuthUserService {
             GoogleIdToken idToken =
                     verifier.verify(request.getIdToken());
             if (idToken == null) {
-                throw new IllegalArgumentException(
+                throw new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
                         "Invalid Google ID token"
                 );
             }
@@ -122,7 +133,9 @@ public class AuthServiceImpl implements AuthUserService {
                     ));
 
             String token = jwtTokenProvider.generateToken(
-                    user.getId().toString(), user.getEmail()
+                    user.getId().toString(),
+                    user.getEmail(),
+                    user.getRole().name()
             );
             return AuthResponse.builder()
                     .token(token)
@@ -131,12 +144,13 @@ public class AuthServiceImpl implements AuthUserService {
                     .message("Google login successful")
                     .build();
 
-        } catch (IllegalArgumentException e) {
+        } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
-            throw new RuntimeException(
-                    "Google authentication failed: "
-                            + e.getMessage(), e
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Google authentication failed",
+                    e
             );
         }
     }

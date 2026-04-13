@@ -10,9 +10,9 @@ spring:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
 
-  jwt:
-    secret: #TODO
-    expiration-ms: #TODO
+jwt:
+  secret: 4dae5a43
+  expiration: 3600000
 
-  google:
-    client-id: #TODO
+google:
+  client-id: test-google-client-id

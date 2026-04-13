@@ -27,6 +27,17 @@ public class AuthUser {
     @Column(nullable = true)
     private String password;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
+
+    @Column(nullable = true)
+    private String mandorCertificationNumber;
+
+    @ManyToOne
+    @JoinColumn(name = "mandor_id")
+    private AuthUser mandor;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
