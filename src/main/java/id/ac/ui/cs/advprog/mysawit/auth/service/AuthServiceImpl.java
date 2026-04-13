@@ -11,7 +11,6 @@ import id.ac.ui.cs.advprog.mysawit.auth.dto.GoogleLoginRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.LoginRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.RegisterRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
-import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser.AuthProvider;
 import id.ac.ui.cs.advprog.mysawit.auth.repository.AuthUserRepository;
 import id.ac.ui.cs.advprog.mysawit.auth.security
         .JwtTokenProvider;
@@ -22,7 +21,6 @@ import org.springframework.security.crypto.password
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -49,7 +47,6 @@ public class AuthServiceImpl implements AuthUserService {
                         passwordEncoder.encode(request.getPassword())
                 )
                 .username(request.getName())
-                .authProvider(AuthProvider.LOCAL)
                 .build();
 
         user = userRepository.save(user);
@@ -72,13 +69,6 @@ public class AuthServiceImpl implements AuthUserService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Invalid email or password"
                 ));
-
-        if (user.getAuthProvider() != AuthProvider.LOCAL) {
-            throw new IllegalArgumentException(
-                    "This account uses Google login. "
-                            + "Please sign in with Google."
-            );
-        }
 
         if (!passwordEncoder.matches(
                 request.getPassword(), user.getPassword())) {
@@ -125,28 +115,11 @@ public class AuthServiceImpl implements AuthUserService {
             String email = payload.getEmail();
             String name = (String) payload.get("name");
 
-            Optional<AuthUser> existingUser =
-                    userRepository.findByEmail(email);
-            AuthUser user;
-
-            if (existingUser.isPresent()) {
-                user = existingUser.get();
-                if (user.getAuthProvider()
-                        != AuthProvider.GOOGLE) {
-                    throw new IllegalArgumentException(
-                            "This email is registered with "
-                                    + "a local account. "
-                                    + "Please login with password."
-                    );
-                }
-            } else {
-                user = AuthUser.builder()
-                        .email(email)
-                        .username(name != null ? name : email)
-                        .authProvider(AuthProvider.GOOGLE)
-                        .build();
-                user = userRepository.save(user);
-            }
+            AuthUser user =
+                    userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "User not found. Please register first."
+                    ));
 
             String token = jwtTokenProvider.generateToken(
                     user.getId().toString(), user.getEmail()

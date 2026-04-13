@@ -27,19 +27,11 @@ public class AuthUser {
     @Column(nullable = true)
     private String password;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AuthProvider authProvider;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    public enum AuthProvider {
-        LOCAL, GOOGLE
-    }
 
     @PrePersist
     protected void onCreate() {
