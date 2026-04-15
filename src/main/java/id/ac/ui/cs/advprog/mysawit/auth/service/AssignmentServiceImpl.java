@@ -132,7 +132,7 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         Assignment savedAssignment = assignmentRepository.save(newAssignment);
 
-        return buildReassignmentResponse(newAssignment, buruh, oldMandor, newMandor);
+        return buildReassignmentResponse(savedAssignment, buruh, oldMandor, newMandor);
     }
 
     private AssignmentResponse buildAssignmentResponse(Assignment assignment) {
