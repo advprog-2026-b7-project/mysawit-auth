@@ -79,7 +79,6 @@ public class AuthUserController {
                 .id(user.getId().toString())
                 .email(user.getEmail())
                 .username(user.getUsername())
-                .authProvider(user.getAuthProvider().toString())
                 .build();
 
         return ResponseEntity.ok(response);

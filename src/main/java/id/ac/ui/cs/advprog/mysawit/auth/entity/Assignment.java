@@ -5,37 +5,26 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+
 @Entity
-@Table(name = "auth_users")
+@Table(name = "assignments")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AuthUser {
+public class Assignment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
-    private String username;
-
-    @Column(nullable = false, unique = true)
-    private String email;
-
-    @Column(nullable = true)
-    private String password;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
-
-    @Column(nullable = true)
-    private String mandorCertificationNumber;
+    @ManyToOne
+    @JoinColumn(name = "buruh_id", nullable = false)
+    private AuthUser buruh;
 
     @ManyToOne
-    @JoinColumn(name = "mandor_id")
+    @JoinColumn(name = "mandor_id", nullable = false)
     private AuthUser mandor;
 
     @Column(name = "created_at", nullable = false, updatable = false)
