@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,8 +32,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
         System.out.println("JWT FILTER RUNNING: " + request.getRequestURI());
@@ -52,6 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     String userId = jwtTokenProvider.getUserIdFromToken(token);
                     String email = jwtTokenProvider.getEmailFromToken(token);
                     String role = jwtTokenProvider.getRoleFromToken(token);
+                    String username = jwtTokenProvider.getUsernameFromToken(token);
 
                     System.out.println("USER ID: " + userId);
                     System.out.println("ROLE: " + role);
@@ -59,6 +61,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     AuthUser user = AuthUser.builder()
                             .id(UUID.fromString(userId))
                             .email(email)
+                            .username(username)
                             .role(Role.valueOf(role))
                             .build();
 
