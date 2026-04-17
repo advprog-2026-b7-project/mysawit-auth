@@ -154,4 +154,13 @@ public class AuthServiceImpl implements AuthUserService {
             );
         }
     }
+
+    @Override
+    public AuthUser getUserById(String userId) {
+        return userRepository.findById(java.util.UUID.fromString(userId))
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "User not found"
+                ));
+    }
 }
