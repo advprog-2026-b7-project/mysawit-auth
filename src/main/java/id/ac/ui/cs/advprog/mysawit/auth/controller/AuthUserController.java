@@ -75,12 +75,33 @@ public class AuthUserController {
                     .body(Map.of("message", "Invalid authentication principal"));
         }
 
+        MeResponse response = buildMeResponse(user);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/profile/{userId}")
+    public ResponseEntity<?> getUserProfile(@PathVariable String userId) {
+        try {
+            AuthUser user = authService.getUserById(userId);
+            MeResponse response = buildMeResponse(user);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "User not found"));
+        }
+    }
+
+    private MeResponse buildMeResponse(AuthUser user){
+        String mandorId = user.getMandor() != null ? user.getMandor().getId().toString() : null;
         MeResponse response = MeResponse.builder()
                 .id(user.getId().toString())
                 .email(user.getEmail())
                 .username(user.getUsername())
+                .role(user.getRole().toString())
+                .mandorCertificationNumber(user.getMandorCertificationNumber())
+                .mandorId(mandorId)
                 .build();
-
-        return ResponseEntity.ok(response);
+        return response;
     }
 }

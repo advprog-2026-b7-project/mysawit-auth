@@ -56,7 +56,8 @@ public class AuthServiceImpl implements AuthUserService {
         String token = jwtTokenProvider.generateToken(
                 user.getId().toString(),
                 user.getEmail(),
-                user.getRole().name()
+                user.getRole().name(),
+                user.getUsername()
         );
 
         return AuthResponse.builder()
@@ -87,7 +88,8 @@ public class AuthServiceImpl implements AuthUserService {
         String token = jwtTokenProvider.generateToken(
                 user.getId().toString(),
                 user.getEmail(),
-                user.getRole().name()
+                user.getRole().name(),
+                user.getUsername()
         );
 
         return AuthResponse.builder()
@@ -135,7 +137,8 @@ public class AuthServiceImpl implements AuthUserService {
             String token = jwtTokenProvider.generateToken(
                     user.getId().toString(),
                     user.getEmail(),
-                    user.getRole().name()
+                    user.getRole().name(),
+                    user.getUsername()
             );
             return AuthResponse.builder()
                     .token(token)
@@ -153,5 +156,14 @@ public class AuthServiceImpl implements AuthUserService {
                     e
             );
         }
+    }
+
+    @Override
+    public AuthUser getUserById(String userId) {
+        return userRepository.findById(java.util.UUID.fromString(userId))
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "User not found"
+                ));
     }
 }
