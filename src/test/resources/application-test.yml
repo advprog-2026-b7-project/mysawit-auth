@@ -11,7 +11,7 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
 
 jwt:
-  secret: 4dae5a43
+  secret: test-secret-key-for-jwt-signing-1234567890
   expiration: 3600000
 
 google:

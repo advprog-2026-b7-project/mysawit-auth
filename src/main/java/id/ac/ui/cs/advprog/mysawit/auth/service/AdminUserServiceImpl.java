@@ -7,6 +7,7 @@ import id.ac.ui.cs.advprog.mysawit.auth.service.AdminUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -18,22 +19,16 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public List<AuthUser> getUsers(String name, String email, Role role) {
-        if (name != null && email != null) {
-            return userRepository
-                    .findByUsernameContainingIgnoreCaseAndEmailContainingIgnoreCase(name, email);
+        String normalizedName = normalize(name);
+        String normalizedEmail = normalize(email);
+
+        return userRepository.findUsersByFilters(normalizedName, normalizedEmail, role);
+    }
+
+    private String normalize(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
         }
-        if (name != null) {
-            return userRepository
-                    .findByUsernameContainingIgnoreCase(name);
-        }
-        if (email != null) {
-            return userRepository
-                    .findByEmailContainingIgnoreCase(email);
-        }
-        if (role != null) {
-            return userRepository
-                    .findByRole(role);
-        }
-        return userRepository.findAll();
+        return value.trim();
     }
 }

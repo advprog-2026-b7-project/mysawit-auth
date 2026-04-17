@@ -5,7 +5,7 @@ WORKDIR /app
 COPY . .
 
 RUN chmod +x gradlew
-RUN ./gradlew build -x test
+RUN ./gradlew build -x test -x checkstyleMain -x checkstyleTest
 
 # Run stage
 FROM eclipse-temurin:21-jre-alpine

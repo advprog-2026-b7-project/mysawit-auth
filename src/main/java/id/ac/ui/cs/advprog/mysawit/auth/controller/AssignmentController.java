@@ -2,6 +2,8 @@ package id.ac.ui.cs.advprog.mysawit.auth.controller;
 
 import id.ac.ui.cs.advprog.mysawit.auth.dto.AssignmentResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.CreateAssignmentRequest;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.ReassignmentRequest;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.ReassignmentResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AssignmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -75,6 +77,20 @@ public class AssignmentController {
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @PostMapping("/{id}/reassign")
+    public ResponseEntity<ReassignmentResponse> reassignBuruh(
+            @PathVariable UUID id,
+            @RequestBody ReassignmentRequest request,
+            Authentication authentication) {
+        try {
+            String adminId = authentication.getName();
+            ReassignmentResponse response = assignmentService.reassignBuruh(id, request, adminId);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 }
