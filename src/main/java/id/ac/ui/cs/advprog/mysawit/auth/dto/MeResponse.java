@@ -16,6 +16,4 @@ public class MeResponse {
     private String role;
     private String mandorCertificationNumber;
     private String mandorId;
-    private String createdAt;
-    private String updatedAt;
 }
