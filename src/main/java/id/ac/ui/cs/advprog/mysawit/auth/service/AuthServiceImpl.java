@@ -38,9 +38,25 @@ public class AuthServiceImpl implements AuthUserService {
 
     @Override
     public AuthResponse register(RegisterRequest request) {
+        if (request.getRole() == Role.ADMIN) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Admin accounts cannot be registered directly"
+            );
+        }
+
+        if (request.getRole() == Role.MANDOR
+                && (request.getMandorCertificationNumber() == null
+                    || request.getMandorCertificationNumber().isBlank())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Mandor accounts must provide a certification number"
+            );
+        }
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
+                    HttpStatus.CONFLICT,
                     "Email is already registered"
             );
         }
@@ -50,6 +66,11 @@ public class AuthServiceImpl implements AuthUserService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .username(request.getName())
                 .role(request.getRole())
+                .mandorCertificationNumber(
+                        request.getRole() == Role.MANDOR
+                                ? request.getMandorCertificationNumber().trim()
+                                : null
+                )
                 .build();
 
         user = userRepository.save(user);
