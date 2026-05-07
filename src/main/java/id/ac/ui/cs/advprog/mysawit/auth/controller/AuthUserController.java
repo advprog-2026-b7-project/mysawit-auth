@@ -69,14 +69,23 @@ public class AuthUserController {
                     .body(Map.of("message", "Not authenticated"));
         }
 
-        if (!(authentication.getPrincipal() instanceof AuthUser user)) {
+        if (!(authentication.getPrincipal() instanceof AuthUser tokenUser)) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid authentication principal"));
         }
 
-        MeResponse response = buildMeResponse(user);
-        return ResponseEntity.ok(response);
+        // Fetch from the database so mandorId and other relations are populated.
+        // The JWT principal only carries id/email/role/username — not foreign keys.
+        try {
+            AuthUser user = authService.getUserById(tokenUser.getId().toString());
+            MeResponse response = buildMeResponse(user);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "User not found"));
+        }
     }
 
     @GetMapping("/profile/{userId}")
