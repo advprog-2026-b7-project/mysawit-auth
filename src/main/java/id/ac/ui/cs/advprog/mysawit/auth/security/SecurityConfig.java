@@ -43,7 +43,9 @@ public class SecurityConfig {
                                                 .requestMatchers(
                                         "/api/auth/register",
                                                         "/api/auth/login",
-                                                        "/api/auth/google-login")
+                                                        "/api/auth/google-login",
+                                                        "/api/auth/logout",
+                                                        "/api/auth/profile/**")
                                                 .permitAll()
                                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                                 .requestMatchers("/api/auth/me").authenticated()
