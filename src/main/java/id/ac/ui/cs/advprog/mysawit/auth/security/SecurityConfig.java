@@ -34,16 +34,21 @@ public class SecurityConfig {
 
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-        // Uses getRequestURI() to avoid getServletPath() issues behind Koyeb/Cloudflare proxy.
+        // Check both getRequestURI() and getServletPath() — one or the other may be unreliable
+        // behind Koyeb/Cloudflare depending on how the proxy forwards the request.
+        private static boolean isPublicAuthPath(String path) {
+                if (path == null || path.isEmpty()) return false;
+                return path.startsWith("/api/auth/register")
+                        || path.startsWith("/api/auth/login")
+                        || path.startsWith("/api/auth/google-login")
+                        || path.startsWith("/api/auth/logout")
+                        || path.startsWith("/api/auth/profile/");
+        }
+
         private static final RequestMatcher PUBLIC_URLS = request -> {
-                String uri = request.getRequestURI();
-                String method = request.getMethod();
-                return "OPTIONS".equalsIgnoreCase(method)
-                        || uri.startsWith("/api/auth/register")
-                        || uri.startsWith("/api/auth/login")
-                        || uri.startsWith("/api/auth/google-login")
-                        || uri.startsWith("/api/auth/logout")
-                        || uri.startsWith("/api/auth/profile/");
+                if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
+                return isPublicAuthPath(request.getRequestURI())
+                        || isPublicAuthPath(request.getServletPath());
         };
 
         @Bean
