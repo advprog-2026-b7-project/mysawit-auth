@@ -74,9 +74,9 @@ public class SecurityConfig {
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration configuration = new CorsConfiguration();
 
-                configuration.setAllowedOrigins(List.of(
-                                "http://localhost:3000",
-                                "https://mysawit-amberleyvs-projects.vercel.app"));
+                // allowedOriginPatterns("*") works with credentials and covers all
+                // deployment URLs (Vercel previews, custom domains, localhost, etc.)
+                configuration.setAllowedOriginPatterns(List.of("*"));
                 configuration.setAllowedMethods(List.of(
                                 "GET",
                                 "POST",
