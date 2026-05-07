@@ -46,15 +46,21 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
                                                 // Allow all CORS preflight requests
                                                 .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.OPTIONS, "/**")).permitAll()
-                                                // Public auth endpoints — use AntPathRequestMatcher to avoid
-                                                // MvcRequestMatcher issues behind reverse proxies (Koyeb, Render, etc.)
-                                                .requestMatchers(
-                                                        AntPathRequestMatcher.antMatcher("/api/auth/register"),
-                                                        AntPathRequestMatcher.antMatcher("/api/auth/login"),
-                                                        AntPathRequestMatcher.antMatcher("/api/auth/google-login"),
-                                                        AntPathRequestMatcher.antMatcher("/api/auth/logout"),
-                                                        AntPathRequestMatcher.antMatcher("/api/auth/profile/**"))
-                                                .permitAll()
+                                                // Public auth endpoints — use a lambda RequestMatcher to avoid
+                                                // AntPathRequestMatcher/MvcRequestMatcher path resolution issues
+                                                // behind reverse proxies (Koyeb/Cloudflare) where getServletPath()
+                                                // may return an empty string
+                                                .requestMatchers(request -> {
+                                                        String path = request.getServletPath();
+                                                        if (path == null || path.isEmpty()) {
+                                                                path = request.getRequestURI();
+                                                        }
+                                                        return path.startsWith("/api/auth/register")
+                                                                || path.startsWith("/api/auth/login")
+                                                                || path.startsWith("/api/auth/google-login")
+                                                                || path.startsWith("/api/auth/logout")
+                                                                || path.startsWith("/api/auth/profile/");
+                                                }).permitAll()
                                                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/admin/**")).hasRole("ADMIN")
                                                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/me")).authenticated()
                                                 .anyRequest().authenticated())
