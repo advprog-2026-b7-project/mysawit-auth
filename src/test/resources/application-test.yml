@@ -9,3 +9,10 @@ spring:
     hibernate:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
+
+jwt:
+  secret: test-secret-key-for-jwt-signing-1234567890
+  expiration: 3600000
+
+google:
+  client-id: test-google-client-id
