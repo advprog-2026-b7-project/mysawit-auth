@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -24,6 +25,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -42,15 +44,19 @@ public class SecurityConfig {
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                                 .authorizeHttpRequests(auth -> auth
+                                                // Allow all CORS preflight requests
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.OPTIONS, "/**")).permitAll()
+                                                // Public auth endpoints — use AntPathRequestMatcher to avoid
+                                                // MvcRequestMatcher issues behind reverse proxies (Koyeb, Render, etc.)
                                                 .requestMatchers(
-                                        "/api/auth/register",
-                                                        "/api/auth/login",
-                                                        "/api/auth/google-login",
-                                                        "/api/auth/logout",
-                                                        "/api/auth/profile/**")
+                                                        AntPathRequestMatcher.antMatcher("/api/auth/register"),
+                                                        AntPathRequestMatcher.antMatcher("/api/auth/login"),
+                                                        AntPathRequestMatcher.antMatcher("/api/auth/google-login"),
+                                                        AntPathRequestMatcher.antMatcher("/api/auth/logout"),
+                                                        AntPathRequestMatcher.antMatcher("/api/auth/profile/**"))
                                                 .permitAll()
-                                                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                                                .requestMatchers("/api/auth/me").authenticated()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/admin/**")).hasRole("ADMIN")
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/me")).authenticated()
                                                 .anyRequest().authenticated())
                                 .exceptionHandling(ex -> ex
                                                 .authenticationEntryPoint((request, response, authException) -> {
