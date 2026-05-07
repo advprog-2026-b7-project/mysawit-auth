@@ -29,19 +29,23 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (userRepository.existsByEmail(adminEmail)) {
-            log.info("Admin account already exists: {}", adminEmail);
-            return;
+        AuthUser admin = userRepository.findByEmail(adminEmail).orElse(null);
+
+        if (admin == null) {
+            admin = AuthUser.builder()
+                    .email(adminEmail)
+                    .password(passwordEncoder.encode(adminPassword))
+                    .username(adminUsername)
+                    .role(Role.ADMIN)
+                    .build();
+            userRepository.save(admin);
+            log.info("Admin account created: {}", adminEmail);
+        } else {
+            admin.setPassword(passwordEncoder.encode(adminPassword));
+            admin.setUsername(adminUsername);
+            admin.setRole(Role.ADMIN);
+            userRepository.save(admin);
+            log.info("Admin account synced: {}", adminEmail);
         }
-
-        AuthUser admin = AuthUser.builder()
-                .email(adminEmail)
-                .password(passwordEncoder.encode(adminPassword))
-                .username(adminUsername)
-                .role(Role.ADMIN)
-                .build();
-
-        userRepository.save(admin);
-        log.info("Admin account created: {}", adminEmail);
     }
 }
