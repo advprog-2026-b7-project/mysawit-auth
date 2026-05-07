@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -19,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -34,47 +34,27 @@ public class SecurityConfig {
 
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-        /**
-         * Chain 1 (highest priority): handles all public endpoints and OPTIONS preflight.
-         * No JWT filter is added — requests that match this chain are permitted unconditionally.
-         * Uses getRequestURI() directly to avoid getServletPath() issues behind Koyeb/Cloudflare.
-         */
-        @Bean
-        @Order(1)
-        public SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
-                http
-                                .securityMatcher(request -> {
-                                        String uri = request.getRequestURI();
-                                        String method = request.getMethod();
-                                        return "OPTIONS".equalsIgnoreCase(method)
-                                                || uri.startsWith("/api/auth/register")
-                                                || uri.startsWith("/api/auth/login")
-                                                || uri.startsWith("/api/auth/google-login")
-                                                || uri.startsWith("/api/auth/logout")
-                                                || uri.startsWith("/api/auth/profile/");
-                                })
-                                .cors(Customizer.withDefaults())
-                                .csrf(AbstractHttpConfigurer::disable)
-                                .sessionManagement(session -> session
-                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-                return http.build();
-        }
+        // Uses getRequestURI() to avoid getServletPath() issues behind Koyeb/Cloudflare proxy.
+        private static final RequestMatcher PUBLIC_URLS = request -> {
+                String uri = request.getRequestURI();
+                String method = request.getMethod();
+                return "OPTIONS".equalsIgnoreCase(method)
+                        || uri.startsWith("/api/auth/register")
+                        || uri.startsWith("/api/auth/login")
+                        || uri.startsWith("/api/auth/google-login")
+                        || uri.startsWith("/api/auth/logout")
+                        || uri.startsWith("/api/auth/profile/");
+        };
 
-        /**
-         * Chain 2: handles all protected endpoints.
-         * JWT filter runs here. All requests require authentication unless matched above.
-         */
         @Bean
-        @Order(2)
-        public SecurityFilterChain securedFilterChain(HttpSecurity http) throws Exception {
+        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
                 http
                                 .cors(Customizer.withDefaults())
                                 .csrf(AbstractHttpConfigurer::disable)
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
                                 .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(PUBLIC_URLS).permitAll()
                                                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/admin/**")).hasRole("ADMIN")
                                                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/me")).authenticated()
                                                 .anyRequest().authenticated())
