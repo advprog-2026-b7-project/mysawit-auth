@@ -22,10 +22,12 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public List<AdminUserResponse> getUsers(String name, String email, Role role) {
-        String normalizedName = normalize(name);
-        String normalizedEmail = normalize(email);
-        return userRepository.findUsersByFilters(normalizedName, normalizedEmail, role)
-                .stream()
+        String nameFilter = (name == null || name.isBlank()) ? null : name.trim().toLowerCase();
+        String emailFilter = (email == null || email.isBlank()) ? null : email.trim().toLowerCase();
+        return userRepository.findAll().stream()
+                .filter(u -> nameFilter == null || u.getUsername().toLowerCase().contains(nameFilter))
+                .filter(u -> emailFilter == null || u.getEmail().toLowerCase().contains(emailFilter))
+                .filter(u -> role == null || u.getRole() == role)
                 .map(this::toResponse)
                 .toList();
     }

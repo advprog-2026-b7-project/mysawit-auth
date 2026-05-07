@@ -4,6 +4,7 @@ import id.ac.ui.cs.advprog.mysawit.auth.dto.AssignmentResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.CreateAssignmentRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.ReassignmentRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.ReassignmentResponse;
+import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AssignmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,7 +27,8 @@ public class AssignmentController {
             @RequestBody CreateAssignmentRequest request,
             Authentication authentication) {
         try {
-            String adminId = authentication.getName();
+            AuthUser admin = (AuthUser) authentication.getPrincipal();
+            String adminId = admin.getId().toString();
             AssignmentResponse response = assignmentService.createAssignment(request, adminId);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (RuntimeException e) {
@@ -86,7 +88,8 @@ public class AssignmentController {
             @RequestBody ReassignmentRequest request,
             Authentication authentication) {
         try {
-            String adminId = authentication.getName();
+            AuthUser admin = (AuthUser) authentication.getPrincipal();
+            String adminId = admin.getId().toString();
             ReassignmentResponse response = assignmentService.reassignBuruh(id, request, adminId);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
