@@ -7,6 +7,7 @@ import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AdminUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminUserController {
     private final AdminUserService adminUserService;
 

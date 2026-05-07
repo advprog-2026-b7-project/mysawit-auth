@@ -9,6 +9,7 @@ import id.ac.ui.cs.advprog.mysawit.auth.service.AssignmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +19,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/assignments")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class AssignmentController {
 
     private final AssignmentService assignmentService;
