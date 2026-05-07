@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,7 +26,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -34,9 +34,40 @@ public class SecurityConfig {
 
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+        /**
+         * Chain 1 (highest priority): handles all public endpoints and OPTIONS preflight.
+         * No JWT filter is added — requests that match this chain are permitted unconditionally.
+         * Uses getRequestURI() directly to avoid getServletPath() issues behind Koyeb/Cloudflare.
+         */
         @Bean
-        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        @Order(1)
+        public SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
+                http
+                                .securityMatcher(request -> {
+                                        String uri = request.getRequestURI();
+                                        String method = request.getMethod();
+                                        return "OPTIONS".equalsIgnoreCase(method)
+                                                || uri.startsWith("/api/auth/register")
+                                                || uri.startsWith("/api/auth/login")
+                                                || uri.startsWith("/api/auth/google-login")
+                                                || uri.startsWith("/api/auth/logout")
+                                                || uri.startsWith("/api/auth/profile/");
+                                })
+                                .cors(Customizer.withDefaults())
+                                .csrf(AbstractHttpConfigurer::disable)
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+                return http.build();
+        }
 
+        /**
+         * Chain 2: handles all protected endpoints.
+         * JWT filter runs here. All requests require authentication unless matched above.
+         */
+        @Bean
+        @Order(2)
+        public SecurityFilterChain securedFilterChain(HttpSecurity http) throws Exception {
                 http
                                 .cors(Customizer.withDefaults())
                                 .csrf(AbstractHttpConfigurer::disable)
@@ -44,23 +75,6 @@ public class SecurityConfig {
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                                 .authorizeHttpRequests(auth -> auth
-                                                // Allow all CORS preflight requests
-                                                .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.OPTIONS, "/**")).permitAll()
-                                                // Public auth endpoints — use a lambda RequestMatcher to avoid
-                                                // AntPathRequestMatcher/MvcRequestMatcher path resolution issues
-                                                // behind reverse proxies (Koyeb/Cloudflare) where getServletPath()
-                                                // may return an empty string
-                                                .requestMatchers(request -> {
-                                                        String path = request.getServletPath();
-                                                        if (path == null || path.isEmpty()) {
-                                                                path = request.getRequestURI();
-                                                        }
-                                                        return path.startsWith("/api/auth/register")
-                                                                || path.startsWith("/api/auth/login")
-                                                                || path.startsWith("/api/auth/google-login")
-                                                                || path.startsWith("/api/auth/logout")
-                                                                || path.startsWith("/api/auth/profile/");
-                                                }).permitAll()
                                                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/admin/**")).hasRole("ADMIN")
                                                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/me")).authenticated()
                                                 .anyRequest().authenticated())
