@@ -31,8 +31,8 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String userId, String email, String role, String username) {
-
+    public String generateToken(
+            String userId, String email, String role, String username, String nama) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
@@ -41,6 +41,7 @@ public class JwtTokenProvider {
                 .claim("email", email)
                 .claim("role", role)
                 .claim("username", username)
+                .claim("nama", nama)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
@@ -71,6 +72,10 @@ public class JwtTokenProvider {
         return getClaims(token).get("username", String.class);
     }
 
+    public String getNamaFromToken(String token) {
+        return getClaims(token).get("nama", String.class);
+    }
+
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
@@ -78,7 +83,6 @@ public class JwtTokenProvider {
                     .build()
                     .parseSignedClaims(token);
             return true;
-
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }

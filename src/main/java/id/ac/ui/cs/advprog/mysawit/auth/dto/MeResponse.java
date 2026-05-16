@@ -1,9 +1,6 @@
 package id.ac.ui.cs.advprog.mysawit.auth.dto;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -13,7 +10,10 @@ public class MeResponse {
     private String id;
     private String email;
     private String username;
+    private String nama;
     private String role;
     private String mandorCertificationNumber;
     private String mandorId;
+    private String authProvider;
+    private LocalDateTime createdAt;
 }

@@ -36,6 +36,7 @@ public class DataInitializer implements CommandLineRunner {
                     .email(adminEmail)
                     .password(passwordEncoder.encode(adminPassword))
                     .username(adminUsername)
+                    .nama(adminUsername)
                     .role(Role.ADMIN)
                     .build();
             userRepository.save(admin);
@@ -43,6 +44,7 @@ public class DataInitializer implements CommandLineRunner {
         } else {
             admin.setPassword(passwordEncoder.encode(adminPassword));
             admin.setUsername(adminUsername);
+            admin.setNama(adminUsername);
             admin.setRole(Role.ADMIN);
             userRepository.save(admin);
             log.info("Admin account synced: {}", adminEmail);

@@ -33,6 +33,17 @@ public class Assignment {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "reassigned_at")
+    private LocalDateTime reassignedAt;
+
+    public LocalDateTime getReassignedAt() {
+        return reassignedAt;
+    }
+
+    public void setReassignedAt(LocalDateTime reassignedAt) {
+        this.reassignedAt = reassignedAt;
+    }
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

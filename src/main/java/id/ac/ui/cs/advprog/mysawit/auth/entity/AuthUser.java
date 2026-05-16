@@ -21,6 +21,9 @@ public class AuthUser {
     @Column(nullable = false)
     private String username;
 
+    @Column(nullable = true)
+    private String nama;
+
     @Column(nullable = false, unique = true)
     private String email;
 
@@ -43,6 +46,11 @@ public class AuthUser {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    private AuthProvider authProvider = AuthProvider.LOCAL;
 
     @PrePersist
     protected void onCreate() {

@@ -9,6 +9,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -53,19 +57,24 @@ class AdminUserServiceImplTest {
                 .mandor(mandor)
                 .build();
 
-        when(authUserRepository.findUsersByFilters("Alice", null, Role.BURUH))
-                .thenReturn(List.of(user));
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<AuthUser> pageResult = new PageImpl<>(List.of(user), pageable, 1);
 
-        List<AdminUserResponse> result = adminUserService.getUsers("  Alice  ", " ", Role.BURUH);
+        when(authUserRepository.findUsersByFilters("Alice", null, Role.BURUH, pageable))
+                .thenReturn(pageResult);
 
-        assertEquals(1, result.size());
-        assertEquals(user.getId(), result.getFirst().getId());
-        assertEquals("Alice", result.getFirst().getUsername());
-        assertEquals("alice@example.com", result.getFirst().getEmail());
-        assertEquals(Role.BURUH, result.getFirst().getRole());
-        assertEquals("CERT-123", result.getFirst().getMandorCertificationNumber());
-        assertEquals(mandorId, result.getFirst().getMandorId());
-        verify(authUserRepository).findUsersByFilters("Alice", null, Role.BURUH);
+        Page<AdminUserResponse> result =
+                adminUserService.getUsers("  Alice  ", " ", Role.BURUH, pageable);
+
+        assertEquals(1, result.getTotalElements());
+        AdminUserResponse first = result.getContent().getFirst();
+        assertEquals(user.getId(), first.getId());
+        assertEquals("Alice", first.getUsername());
+        assertEquals("alice@example.com", first.getEmail());
+        assertEquals(Role.BURUH, first.getRole());
+        assertEquals("CERT-123", first.getMandorCertificationNumber());
+        assertEquals(mandorId, first.getMandorId());
+        verify(authUserRepository).findUsersByFilters("Alice", null, Role.BURUH, pageable);
     }
 
     @Test
@@ -77,12 +86,15 @@ class AdminUserServiceImplTest {
                 .role(Role.ADMIN)
                 .build();
 
-        when(authUserRepository.findUsersByFilters(null, null, null))
-                .thenReturn(List.of(user));
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<AuthUser> pageResult = new PageImpl<>(List.of(user), pageable, 1);
 
-        List<AdminUserResponse> result = adminUserService.getUsers(null, null, null);
+        when(authUserRepository.findUsersByFilters(null, null, null, pageable))
+                .thenReturn(pageResult);
 
-        assertNull(result.getFirst().getMandorId());
+        Page<AdminUserResponse> result = adminUserService.getUsers(null, null, null, pageable);
+
+        assertNull(result.getContent().getFirst().getMandorId());
     }
 
     @Test
@@ -111,7 +123,8 @@ class AdminUserServiceImplTest {
         );
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-        verify(authUserRepository, never()).delete(org.mockito.ArgumentMatchers.any(AuthUser.class));
+        verify(authUserRepository, never())
+                .delete(org.mockito.ArgumentMatchers.any(AuthUser.class));
     }
 
     @Test
@@ -127,8 +140,9 @@ class AdminUserServiceImplTest {
 
         when(authUserRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
 
-        adminUserService.deleteUser(targetUserId, adminId);
+        String message = adminUserService.deleteUser(targetUserId, adminId);
 
         verify(authUserRepository).delete(targetUser);
+        assertEquals("User target@example.com successfully deleted.", message);
     }
 }

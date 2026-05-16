@@ -27,7 +27,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity          // enables @PreAuthorize on controllers
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -36,33 +36,28 @@ public class SecurityConfig {
         @Bean
         public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-                http
-                                .cors(Customizer.withDefaults())
-                                .csrf(AbstractHttpConfigurer::disable)
-                                .sessionManagement(session -> session
-                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                                // All path-based authorization removed.
-                                // Public vs protected distinction is handled by @PreAuthorize
-                                // on the controller methods — no path matching needed here.
-                                .authorizeHttpRequests(auth -> auth
-                                                .anyRequest().permitAll())
-
-                                .exceptionHandling(ex -> ex
-                                                .authenticationEntryPoint((request, response, authException) -> {
-                                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                                                        response.setContentType("application/json");
-                                                        response.getWriter().write(
-                                                                "{\"message\":\"Unauthorized: " + authException.getMessage() + "\"}");
-                                                })
-                                                .accessDeniedHandler((request, response, accessDeniedException) -> {
-                                                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                                                        response.setContentType("application/json");
-                                                        response.getWriter().write(
-                                                                "{\"message\":\"Forbidden: insufficient permissions\"}");
-                                                }))
-                                .addFilterBefore(jwtAuthenticationFilter,
-                                                UsernamePasswordAuthenticationFilter.class);
+                http.cors(Customizer.withDefaults())
+                        .csrf(AbstractHttpConfigurer::disable)
+                        .sessionManagement(s -> s.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS))
+                        .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                        .exceptionHandling(ex -> ex
+                                .authenticationEntryPoint((request, response, authEx) -> {
+                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                        response.setContentType("application/json");
+                                        response.getWriter().write(
+                                                "{\"message\":\"Unauthorized: "
+                                                + authEx.getMessage() + "\"}");
+                                })
+                                .accessDeniedHandler((request, response, accessEx) -> {
+                                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                        response.setContentType("application/json");
+                                        response.getWriter().write(
+                                                "{\"message\":\"Forbidden: "
+                                                + "insufficient permissions\"}");
+                                }))
+                        .addFilterBefore(jwtAuthenticationFilter,
+                                UsernamePasswordAuthenticationFilter.class);
                 return http.build();
         }
 
@@ -81,6 +76,6 @@ public class SecurityConfig {
 
         @Bean
         public PasswordEncoder passwordEncoder() {
-                return new BCryptPasswordEncoder();
+                return new BCryptPasswordEncoder(12);
         }
 }

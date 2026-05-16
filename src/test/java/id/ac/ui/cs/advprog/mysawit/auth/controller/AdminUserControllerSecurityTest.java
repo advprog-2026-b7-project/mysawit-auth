@@ -1,6 +1,6 @@
 package id.ac.ui.cs.advprog.mysawit.auth.controller;
-import id.ac.ui.cs.advprog.mysawit.auth.dto.AdminUserResponse;
 
+import id.ac.ui.cs.advprog.mysawit.auth.dto.AdminUserResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AdminUserService;
@@ -9,6 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,9 +25,11 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -59,8 +65,12 @@ class AdminUserControllerSecurityTest {
                 .role(Role.MANDOR)
                 .build();
 
-        when(adminUserService.getUsers("ali", "example", Role.MANDOR))
-                .thenReturn(List.of(user));
+        Pageable defaultPageable = PageRequest.of(0, 20);
+        Page<AdminUserResponse> page = new PageImpl<>(List.of(user), defaultPageable, 1);
+
+        when(adminUserService.getUsers(
+                eq("ali"), eq("example"), eq(Role.MANDOR), any(Pageable.class)))
+                .thenReturn(page);
 
         mockMvc.perform(
                         get("/api/admin/users")
@@ -69,10 +79,13 @@ class AdminUserControllerSecurityTest {
                                 .param("role", "MANDOR")
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].email").value("alice@example.com"))
-                .andExpect(jsonPath("$[0].username").value("Alice"));
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.data.content[0].email").value("alice@example.com"))
+                .andExpect(jsonPath("$.data.content[0].username").value("Alice"))
+                .andExpect(jsonPath("$.data.totalElements").value(1));
 
-        verify(adminUserService).getUsers("ali", "example", Role.MANDOR);
+        verify(adminUserService).getUsers(
+                eq("ali"), eq("example"), eq(Role.MANDOR), any(Pageable.class));
     }
 
     @Test
@@ -89,11 +102,16 @@ class AdminUserControllerSecurityTest {
         UUID adminId = UUID.randomUUID();
         UUID targetUserId = UUID.randomUUID();
 
+        when(adminUserService.deleteUser(targetUserId, adminId))
+                .thenReturn("User target@example.com successfully deleted.");
+
         mockMvc.perform(
                         delete("/api/admin/users/{id}", targetUserId)
                                 .with(authentication(adminAuthentication(adminId)))
                 )
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message")
+                        .value("User target@example.com successfully deleted."));
 
         verify(adminUserService).deleteUser(targetUserId, adminId);
     }
@@ -126,6 +144,7 @@ class AdminUserControllerSecurityTest {
     private Authentication adminAuthentication(UUID adminId) {
         AuthUser admin = AuthUser.builder()
                 .id(adminId)
+                .username("admin")
                 .email("admin@example.com")
                 .role(Role.ADMIN)
                 .build();

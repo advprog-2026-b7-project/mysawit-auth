@@ -45,11 +45,11 @@ public class AuthUserController {
     @PostMapping("/google-login")
     public ResponseEntity<AuthResponse> googleLogin(
             @Valid @RequestBody GoogleLoginRequest request) {
-        System.out.println("GOOGLE LOGIN HIT");
         AuthResponse response = authService.googleLogin(request);
         return ResponseEntity.ok(response);
     }
 
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
             @Valid @RequestBody LogoutRequest request) {
@@ -77,8 +77,6 @@ public class AuthUserController {
                     .body(Map.of("message", "Invalid authentication principal"));
         }
 
-        // Fetch from the database so mandorId and other relations are populated.
-        // The JWT principal only carries id/email/role/username — not foreign keys.
         try {
             AuthUser user = authService.getUserById(tokenUser.getId().toString());
             MeResponse response = buildMeResponse(user);
@@ -103,16 +101,19 @@ public class AuthUserController {
         }
     }
 
-    private MeResponse buildMeResponse(AuthUser user){
+    private MeResponse buildMeResponse(AuthUser user) {
         String mandorId = user.getMandor() != null ? user.getMandor().getId().toString() : null;
-        MeResponse response = MeResponse.builder()
+        return MeResponse.builder()
                 .id(user.getId().toString())
                 .email(user.getEmail())
                 .username(user.getUsername())
+                .nama(user.getNama())
                 .role(user.getRole().toString())
                 .mandorCertificationNumber(user.getMandorCertificationNumber())
                 .mandorId(mandorId)
+                .authProvider(user.getAuthProvider() != null
+                        ? user.getAuthProvider().name() : "LOCAL")
+                .createdAt(user.getCreatedAt())
                 .build();
-        return response;
     }
 }

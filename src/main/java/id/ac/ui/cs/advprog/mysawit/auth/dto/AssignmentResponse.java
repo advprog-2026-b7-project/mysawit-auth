@@ -1,7 +1,5 @@
 package id.ac.ui.cs.advprog.mysawit.auth.dto;
-
 import lombok.*;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -11,12 +9,11 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class AssignmentResponse {
-    
     private UUID id;
     private UUID buruhId;
-    private String buruhName;
+    private String buruhNama;
     private UUID mandorId;
-    private String mandorName;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private String mandorNama;
+    private LocalDateTime assignedAt;
+    private LocalDateTime reassignedAt;
 }

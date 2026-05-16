@@ -1,19 +1,19 @@
 package id.ac.ui.cs.advprog.mysawit.auth.controller;
 
-import id.ac.ui.cs.advprog.mysawit.auth.dto.AssignmentResponse;
-import id.ac.ui.cs.advprog.mysawit.auth.dto.CreateAssignmentRequest;
-import id.ac.ui.cs.advprog.mysawit.auth.dto.ReassignmentRequest;
-import id.ac.ui.cs.advprog.mysawit.auth.dto.ReassignmentResponse;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.*;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AssignmentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -25,77 +25,81 @@ public class AssignmentController {
     private final AssignmentService assignmentService;
 
     @PostMapping
-    public ResponseEntity<AssignmentResponse> createAssignment(
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AssignmentResponse>> createAssignment(
             @RequestBody CreateAssignmentRequest request,
             Authentication authentication) {
-        try {
-            AuthUser admin = (AuthUser) authentication.getPrincipal();
-            String adminId = admin.getId().toString();
-            AssignmentResponse response = assignmentService.createAssignment(request, adminId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<AssignmentResponse> getAssignmentById(@PathVariable UUID id) {
-        try {
-            AssignmentResponse response = assignmentService.getAssignmentById(id);
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+        AuthUser admin = (AuthUser) authentication.getPrincipal();
+        AssignmentResponse data =
+                assignmentService.createAssignment(request, admin.getId().toString());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(data));
     }
 
     @GetMapping
-    public ResponseEntity<List<AssignmentResponse>> getAllAssignments() {
-        List<AssignmentResponse> assignments = assignmentService.getAllAssignments();
-        return ResponseEntity.ok(assignments);
+    public ResponseEntity<ApiResponse<PageResponse<AssignmentResponse>>> getAllAssignments(
+            Authentication authentication,
+            @PageableDefault(size = 20) Pageable pageable) {
+        AuthUser caller = (AuthUser) authentication.getPrincipal();
+        Page<AssignmentResponse> page = assignmentService.getAllAssignments(caller, pageable);
+
+        PageResponse<AssignmentResponse> pageResponse = PageResponse.<AssignmentResponse>builder()
+                .content(page.getContent())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(pageResponse));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<AssignmentResponse>> getAssignmentById(
+            @PathVariable UUID id,
+            Authentication authentication) {
+        AuthUser caller = (AuthUser) authentication.getPrincipal();
+        AssignmentResponse data = assignmentService.getAssignmentById(id, caller);
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @GetMapping("/buruh/{buruhId}")
-    public ResponseEntity<List<AssignmentResponse>> getAssignmentsByBuruhId(@PathVariable UUID buruhId) {
-        try {
-            List<AssignmentResponse> assignments = assignmentService.getAssignmentsByBuruhId(buruhId);
-            return ResponseEntity.ok(assignments);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+    public ResponseEntity<ApiResponse<AssignmentResponse>> getAssignmentByBuruhId(
+            @PathVariable UUID buruhId,
+            Authentication authentication) {
+        AuthUser caller = (AuthUser) authentication.getPrincipal();
+        AssignmentResponse data = assignmentService.getAssignmentByBuruhId(buruhId, caller);
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @GetMapping("/mandor/{mandorId}")
-    public ResponseEntity<List<AssignmentResponse>> getAssignmentsByMandorId(@PathVariable UUID mandorId) {
-        try {
-            List<AssignmentResponse> assignments = assignmentService.getAssignmentsByMandorId(mandorId);
-            return ResponseEntity.ok(assignments);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+    public ResponseEntity<ApiResponse<MandorAssignmentsResponse>> getAssignmentsByMandorId(
+            @PathVariable UUID mandorId,
+            Authentication authentication,
+            @PageableDefault(size = 20) Pageable pageable) {
+        AuthUser caller = (AuthUser) authentication.getPrincipal();
+        MandorAssignmentsResponse data =
+                assignmentService.getAssignmentsByMandorId(mandorId, caller, pageable);
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAssignment(@PathVariable UUID id) {
-        try {
-            assignmentService.deleteAssignment(id);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+    public ResponseEntity<Map<String, String>> deleteAssignment(
+            @PathVariable UUID id,
+            Authentication authentication) {
+        AuthUser caller = (AuthUser) authentication.getPrincipal();
+        String message = assignmentService.deleteAssignment(id, caller);
+        return ResponseEntity.ok(Map.of("message", message));
     }
 
     @PostMapping("/{id}/reassign")
-    public ResponseEntity<ReassignmentResponse> reassignBuruh(
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AssignmentResponse>> reassignBuruh(
             @PathVariable UUID id,
             @RequestBody ReassignmentRequest request,
             Authentication authentication) {
-        try {
-            AuthUser admin = (AuthUser) authentication.getPrincipal();
-            String adminId = admin.getId().toString();
-            ReassignmentResponse response = assignmentService.reassignBuruh(id, request, adminId);
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+        AuthUser admin = (AuthUser) authentication.getPrincipal();
+        AssignmentResponse data =
+                assignmentService.reassignBuruh(id, request, admin.getId().toString());
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 }
