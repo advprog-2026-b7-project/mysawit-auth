@@ -57,6 +57,54 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleUserNotFound(UserNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "status", "error",
+                "message", ex.getMessage(),
+                "errors", List.of()
+        ));
+    }
+
+    @ExceptionHandler(AssignmentNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleAssignmentNotFound(
+            AssignmentNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "status", "error",
+                "message", ex.getMessage(),
+                "errors", List.of()
+        ));
+    }
+
+    @ExceptionHandler(RoleMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleRoleMismatch(RoleMismatchException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "status", "error",
+                "message", ex.getMessage(),
+                "errors", List.of()
+        ));
+    }
+
+    @ExceptionHandler(DuplicateAssignmentException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateAssignment(
+            DuplicateAssignmentException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "status", "error",
+                "message", ex.getMessage(),
+                "errors", List.of()
+        ));
+    }
+
+    @ExceptionHandler(AssignmentForbiddenException.class)
+    public ResponseEntity<Map<String, Object>> handleAssignmentForbidden(
+            AssignmentForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "status", "error",
+                "message", ex.getMessage(),
+                "errors", List.of()
+        ));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
