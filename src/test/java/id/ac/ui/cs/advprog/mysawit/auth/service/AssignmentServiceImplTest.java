@@ -90,7 +90,6 @@ class AssignmentServiceImplTest {
                 .id(assignmentId).buruhId(buruhId).mandorId(mandorId).build();
     }
 
-    // -------------------- createAssignment --------------------
 
     @Test
     void createAssignment_success() {
@@ -169,7 +168,6 @@ class AssignmentServiceImplTest {
                 .isInstanceOf(DuplicateAssignmentException.class);
     }
 
-    // -------------------- getAllAssignments --------------------
 
     @Test
     void getAllAssignments_adminSeesAll() {
@@ -221,7 +219,6 @@ class AssignmentServiceImplTest {
         assertThat(result.getContent()).containsExactly(response);
     }
 
-    // -------------------- getAssignmentById --------------------
 
     @Test
     void getAssignmentById_successAdminCaller() {
@@ -256,7 +253,6 @@ class AssignmentServiceImplTest {
                 .hasMessage("Access denied to this assignment");
     }
 
-    // -------------------- getAssignmentByBuruhId --------------------
 
     @Test
     void getAssignmentByBuruhId_success() {
@@ -281,7 +277,6 @@ class AssignmentServiceImplTest {
                 .hasMessage("Buruh may only query their own assignment");
     }
 
-    // -------------------- getAssignmentsByMandorId --------------------
 
     @Test
     void getAssignmentsByMandorId_adminAccessingAnyMandor() {
@@ -326,7 +321,6 @@ class AssignmentServiceImplTest {
                 .hasMessage("Mandor may only query their own assignments");
     }
 
-    // -------------------- deleteAssignment --------------------
 
     @Test
     void deleteAssignment_success() {
@@ -358,7 +352,6 @@ class AssignmentServiceImplTest {
                 .isInstanceOf(AssignmentForbiddenException.class);
     }
 
-    // -------------------- reassignBuruh --------------------
 
     @Test
     void reassignBuruh_success() {

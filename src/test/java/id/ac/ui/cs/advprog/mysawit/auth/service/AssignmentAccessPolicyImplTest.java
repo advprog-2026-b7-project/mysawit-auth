@@ -55,8 +55,6 @@ class AssignmentAccessPolicyImplTest {
                 .build();
     }
 
-    // --- checkReadAccess ---
-
     @Test
     void checkReadAccess_adminAllowed() {
         assertThatCode(() -> policy.checkReadAccess(adminCaller, assignment))
@@ -143,7 +141,6 @@ class AssignmentAccessPolicyImplTest {
                 .doesNotThrowAnyException();
     }
 
-    // --- checkBuruhQueryAccess ---
 
     @Test
     void checkBuruhQueryAccess_buruhOwnAllowed() {
@@ -170,7 +167,6 @@ class AssignmentAccessPolicyImplTest {
                 .doesNotThrowAnyException();
     }
 
-    // --- checkMandorQueryAccess ---
 
     @Test
     void checkMandorQueryAccess_mandorOwnAllowed() {

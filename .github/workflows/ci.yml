@@ -39,6 +39,16 @@ jobs:
       - name: Run Unit Tests
         run: ./gradlew test
 
+      - name: Run Functional Tests
+        run: ./gradlew functionalTest
+
+      - name: Upload Functional Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: functional-test-report-auth
+          path: build/reports/tests/functionalTest/
+
       - name: Generate Code Coverage Report
         run: ./gradlew jacocoTestReport
 

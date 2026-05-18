@@ -27,7 +27,6 @@ class AuthUserValidatorImplTest {
     @InjectMocks
     private AuthUserValidatorImpl validator;
 
-    // ── validateRegistration ──────────────────────────────────────────────────
 
     @Test
     void validateRegistration_adminRole_throwsForbidden() {
@@ -111,7 +110,6 @@ class AuthUserValidatorImplTest {
         assertDoesNotThrow(() -> validator.validateRegistration(req));
     }
 
-    // ── validateGoogleRegistration ────────────────────────────────────────────
 
     @Test
     void validateGoogleRegistration_nullRole_throwsBadRequest() {

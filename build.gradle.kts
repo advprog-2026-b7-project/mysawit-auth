@@ -50,6 +50,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("com.h2database:h2")
+    testImplementation("io.rest-assured:rest-assured:5.4.0")
 }
 
 tasks.withType<Test> {
@@ -60,6 +61,13 @@ tasks.test {
     filter {
         excludeTestsMatching("*FunctionalTest")
     }
+    systemProperty("spring.datasource.url",
+        "jdbc:h2:mem:mysawit_auth;DB_CLOSE_DELAY=-1;MODE=PostgreSQL")
+    systemProperty("spring.datasource.username", "sa")
+    systemProperty("spring.datasource.password", "")
+    systemProperty("spring.datasource.driver-class-name", "org.h2.Driver")
+    systemProperty("spring.jpa.hibernate.ddl-auto", "create-drop")
+    systemProperty("spring.jpa.database-platform", "org.hibernate.dialect.H2Dialect")
     finalizedBy(tasks.named("jacocoTestReport"))
 }
 
@@ -74,4 +82,31 @@ tasks.jacocoTestReport {
 checkstyle {
     toolVersion = "10.12.5"
     isIgnoreFailures = false
+}
+
+val functionalTest by tasks.registering(Test::class) {
+    description = "Runs functional tests."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    shouldRunAfter(tasks.test)
+    useJUnitPlatform()
+    systemProperty("spring.datasource.url",
+        "jdbc:h2:mem:mysawit_auth;DB_CLOSE_DELAY=-1;MODE=PostgreSQL")
+    systemProperty("spring.datasource.username", "sa")
+    systemProperty("spring.datasource.password", "")
+    systemProperty("spring.datasource.driver-class-name", "org.h2.Driver")
+    systemProperty("spring.jpa.hibernate.ddl-auto", "create-drop")
+    systemProperty("spring.jpa.database-platform", "org.hibernate.dialect.H2Dialect")
+    filter {
+        includeTestsMatching("*FunctionalTest")
+    }
+    reports {
+        html.outputLocation.set(
+            layout.buildDirectory.dir("reports/tests/functionalTest")
+        )
+        junitXml.outputLocation.set(
+            layout.buildDirectory.dir("test-results/functionalTest")
+        )
+    }
 }

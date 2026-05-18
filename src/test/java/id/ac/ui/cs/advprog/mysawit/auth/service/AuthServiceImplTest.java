@@ -83,7 +83,6 @@ class AuthServiceImplTest {
                 .build();
     }
 
-    // ── register ──────────────────────────────────────────────────────────────
 
     @Test
     void register_success() {
@@ -188,7 +187,6 @@ class AuthServiceImplTest {
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
-    // ── login ─────────────────────────────────────────────────────────────────
 
     @Test
     void login_success() {
@@ -256,7 +254,6 @@ class AuthServiceImplTest {
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
     }
 
-    // ── googleLogin ───────────────────────────────────────────────────────────
 
     private GoogleIdToken.Payload buildPayload(String email, String name) {
         GoogleIdToken.Payload payload = mock(GoogleIdToken.Payload.class);
@@ -352,7 +349,6 @@ class AuthServiceImplTest {
         verify(authUserValidator).validateGoogleRegistration(req);
     }
 
-    // ── getUserById ───────────────────────────────────────────────────────────
 
     @Test
     void getUserById_success() {
