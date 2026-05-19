@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.mysawit.auth.controller;
 
+import id.ac.ui.cs.advprog.mysawit.auth.dto.AdminUserDetailResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.AdminUserResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -24,6 +26,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
+
+import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -95,6 +99,78 @@ class AdminUserControllerSecurityTest {
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(adminUserService);
+    }
+
+    @Test
+    @WithAnonymousUser
+    void getUsers_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/admin/users"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(adminUserService);
+    }
+
+    @Test
+    void getUserById_asAdmin_returns200WithDetailResponse() throws Exception {
+        UUID userId = UUID.randomUUID();
+        AdminUserDetailResponse detail = AdminUserDetailResponse.builder()
+                .id(userId)
+                .username("alice")
+                .nama("Alice")
+                .email("alice@example.com")
+                .role(Role.BURUH)
+                .walletBalance(BigDecimal.ZERO)
+                .mandorCertificationNumber(null)
+                .mandorId(null)
+                .kebunId(null)
+                .kebunNama(null)
+                .build();
+
+        when(adminUserService.getUserById(userId)).thenReturn(detail);
+
+        mockMvc.perform(
+                        get("/api/admin/users/{id}", userId)
+                                .with(authentication(adminAuthentication(UUID.randomUUID())))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.data.id").value(userId.toString()))
+                .andExpect(jsonPath("$.data.email").value("alice@example.com"))
+                .andExpect(jsonPath("$.data.role").value("BURUH"));
+
+        verify(adminUserService).getUserById(userId);
+    }
+
+    @Test
+    @WithMockUser(roles = "BURUH")
+    void getUserById_asNonAdmin_returns403() throws Exception {
+        mockMvc.perform(get("/api/admin/users/{id}", UUID.randomUUID()))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(adminUserService);
+    }
+
+    @Test
+    @WithAnonymousUser
+    void getUserById_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/admin/users/{id}", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(adminUserService);
+    }
+
+    @Test
+    void getUserById_notFound_returns404() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND"))
+                .when(adminUserService).getUserById(userId);
+
+        mockMvc.perform(
+                        get("/api/admin/users/{id}", userId)
+                                .with(authentication(adminAuthentication(UUID.randomUUID())))
+                )
+                .andExpect(status().isNotFound());
     }
 
     @Test

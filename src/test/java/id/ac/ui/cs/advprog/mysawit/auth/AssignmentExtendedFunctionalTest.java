@@ -19,6 +19,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -354,5 +355,80 @@ class AssignmentExtendedFunctionalTest {
             .get("/api/assignments/mandor/" + mandor1Id)
         .then()
             .statusCode(403);
+    }
+
+    @Test
+    void deleteAssignment_withNewMandorId_reassignsAndReturns200() {
+        String uid = UUID.randomUUID().toString();
+        String adminToken = loginAdmin();
+        String mandor1Token = registerAndGetToken(
+            "mandorA-" + uid + "@test.com", "MANDOR", "CERTA-" + uid);
+        String mandor2Token = registerAndGetToken(
+            "mandorB-" + uid + "@test.com", "MANDOR", "CERTB-" + uid);
+        String buruhToken = registerAndGetToken(
+            "buruh-del-" + uid + "@test.com", "BURUH", null);
+
+        String mandor1Id = getIdFromToken(mandor1Token);
+        String mandor2Id = getIdFromToken(mandor2Token);
+        String buruhId = getIdFromToken(buruhToken);
+        String assignmentId = createAssignment(adminToken, buruhId, mandor1Id);
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("Authorization", "Bearer " + adminToken)
+            .body(Map.of("newMandorId", mandor2Id))
+        .when()
+            .delete("/api/assignments/" + assignmentId)
+        .then()
+            .statusCode(200)
+            .body("status", equalTo("success"))
+            .body("data.mandorId", equalTo(mandor2Id))
+            .body("data.reassignedAt", notNullValue());
+    }
+
+    @Test
+    void deleteAssignment_withNewMandorId_sameMandor_returns400() {
+        String uid = UUID.randomUUID().toString();
+        String adminToken = loginAdmin();
+        String mandorToken = registerAndGetToken(
+            "mandor-same-" + uid + "@test.com", "MANDOR", "CERT-SAME-" + uid);
+        String buruhToken = registerAndGetToken(
+            "buruh-same-" + uid + "@test.com", "BURUH", null);
+
+        String mandorId = getIdFromToken(mandorToken);
+        String buruhId = getIdFromToken(buruhToken);
+        String assignmentId = createAssignment(adminToken, buruhId, mandorId);
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("Authorization", "Bearer " + adminToken)
+            .body(Map.of("newMandorId", mandorId))
+        .when()
+            .delete("/api/assignments/" + assignmentId)
+        .then()
+            .statusCode(400);
+    }
+
+    @Test
+    void deleteAssignment_withUnknownNewMandorId_returns404() {
+        String uid = UUID.randomUUID().toString();
+        String adminToken = loginAdmin();
+        String mandorToken = registerAndGetToken(
+            "mandor-unk-" + uid + "@test.com", "MANDOR", "CERT-UNK-" + uid);
+        String buruhToken = registerAndGetToken(
+            "buruh-unk-" + uid + "@test.com", "BURUH", null);
+
+        String mandorId = getIdFromToken(mandorToken);
+        String buruhId = getIdFromToken(buruhToken);
+        String assignmentId = createAssignment(adminToken, buruhId, mandorId);
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("Authorization", "Bearer " + adminToken)
+            .body(Map.of("newMandorId", UUID.randomUUID().toString()))
+        .when()
+            .delete("/api/assignments/" + assignmentId)
+        .then()
+            .statusCode(404);
     }
 }

@@ -16,6 +16,7 @@ public interface AssignmentService {
     MandorAssignmentsResponse getAssignmentsByMandorId(
             UUID mandorId, AuthUser caller, Pageable pageable);
     String deleteAssignment(UUID id, AuthUser caller);
+    AssignmentResponse reassignOnDelete(UUID id, AuthUser caller, UUID newMandorId);
     AssignmentResponse reassignBuruh(
             UUID assignmentId, ReassignmentRequest request, String adminId);
 }

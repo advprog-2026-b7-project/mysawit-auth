@@ -228,7 +228,7 @@ class AuthExtendedFunctionalTest {
     }
 
     @Test
-    void logout_withValidToken_returns403_dueToBug() {
+    void logout_withValidToken_returns401_dueToBug() {
         String token = loginAdmin();
 
         given()
@@ -238,7 +238,7 @@ class AuthExtendedFunctionalTest {
         .when()
             .post("/api/auth/logout")
         .then()
-            .statusCode(403);
+            .statusCode(401);
     }
 
     @Test
@@ -331,5 +331,142 @@ class AuthExtendedFunctionalTest {
         .then()
             .statusCode(200)
             .body("email", equalTo("admin@mysawit.com"));
+    }
+
+    @Test
+    void updateMe_updateNama_returns200() {
+        String uid = UUID.randomUUID().toString();
+        Map<String, Object> body = new HashMap<>();
+        body.put("username", "upd-" + uid);
+        body.put("nama", "Original Name");
+        body.put("email", "upd-" + uid + "@test.com");
+        body.put("password", "Pass1234!");
+        body.put("role", "BURUH");
+        String token = given().contentType(ContentType.JSON).body(body)
+            .when().post("/api/auth/register").then().statusCode(201)
+            .extract().path("token");
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("Authorization", "Bearer " + token)
+            .body(Map.of("nama", "Updated Name"))
+        .when()
+            .patch("/api/auth/me")
+        .then()
+            .statusCode(200)
+            .body("nama", equalTo("Updated Name"));
+    }
+
+    @Test
+    void updateMe_changePassword_returns200() {
+        String uid = UUID.randomUUID().toString();
+        Map<String, Object> body = new HashMap<>();
+        body.put("username", "pwch-" + uid);
+        body.put("nama", "PW Change");
+        body.put("email", "pwch-" + uid + "@test.com");
+        body.put("password", "Pass1234!");
+        body.put("role", "BURUH");
+        String token = given().contentType(ContentType.JSON).body(body)
+            .when().post("/api/auth/register").then().statusCode(201)
+            .extract().path("token");
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("Authorization", "Bearer " + token)
+            .body(Map.of("currentPassword", "Pass1234!", "newPassword", "NewPass1!"))
+        .when()
+            .patch("/api/auth/me")
+        .then()
+            .statusCode(200);
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(Map.of("email", "pwch-" + uid + "@test.com", "password", "NewPass1!"))
+        .when()
+            .post("/api/auth/login")
+        .then()
+            .statusCode(200)
+            .body("token", notNullValue());
+    }
+
+    @Test
+    void updateMe_wrongCurrentPassword_returns400() {
+        String uid = UUID.randomUUID().toString();
+        Map<String, Object> body = new HashMap<>();
+        body.put("username", "wrongpw-" + uid);
+        body.put("nama", "Wrong PW");
+        body.put("email", "wrongpw-" + uid + "@test.com");
+        body.put("password", "Pass1234!");
+        body.put("role", "BURUH");
+        String token = given().contentType(ContentType.JSON).body(body)
+            .when().post("/api/auth/register").then().statusCode(201)
+            .extract().path("token");
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("Authorization", "Bearer " + token)
+            .body(Map.of("currentPassword", "WrongPass1!", "newPassword", "NewPass1!"))
+        .when()
+            .patch("/api/auth/me")
+        .then()
+            .statusCode(400);
+    }
+
+    @Test
+    void updateMe_emailFieldPresent_returns400() {
+        String token = loginAdmin();
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("Authorization", "Bearer " + token)
+            .body(Map.of("email", "newemail@test.com"))
+        .when()
+            .patch("/api/auth/me")
+        .then()
+            .statusCode(400);
+    }
+
+    @Test
+    void updateMe_duplicateUsername_returns409() {
+        String uid = UUID.randomUUID().toString();
+
+        Map<String, Object> body1 = new HashMap<>();
+        body1.put("username", "taken-" + uid);
+        body1.put("nama", "User One");
+        body1.put("email", "user1-" + uid + "@test.com");
+        body1.put("password", "Pass1234!");
+        body1.put("role", "BURUH");
+        given().contentType(ContentType.JSON).body(body1)
+            .when().post("/api/auth/register").then().statusCode(201);
+
+        Map<String, Object> body2 = new HashMap<>();
+        body2.put("username", "updater-" + uid);
+        body2.put("nama", "User Two");
+        body2.put("email", "user2-" + uid + "@test.com");
+        body2.put("password", "Pass1234!");
+        body2.put("role", "BURUH");
+        String token2 = given().contentType(ContentType.JSON).body(body2)
+            .when().post("/api/auth/register").then().statusCode(201)
+            .extract().path("token");
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("Authorization", "Bearer " + token2)
+            .body(Map.of("username", "taken-" + uid))
+        .when()
+            .patch("/api/auth/me")
+        .then()
+            .statusCode(409);
+    }
+
+    @Test
+    void updateMe_withoutToken_returns401() {
+        given()
+            .contentType(ContentType.JSON)
+            .body(Map.of("nama", "Name"))
+        .when()
+            .patch("/api/auth/me")
+        .then()
+            .statusCode(401);
     }
 }

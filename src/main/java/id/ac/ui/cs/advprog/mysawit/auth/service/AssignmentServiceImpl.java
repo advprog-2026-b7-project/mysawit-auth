@@ -138,6 +138,36 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     @Override
     @Transactional
+    public AssignmentResponse reassignOnDelete(UUID id, AuthUser caller, UUID newMandorId) {
+        Assignment assignment = assignmentRepository.findById(id)
+                .orElseThrow(() -> new AssignmentNotFoundException("Assignment not found"));
+
+        accessPolicy.checkDeleteAccess(caller, assignment);
+
+        AuthUser newMandor = findUser(newMandorId, "USER_NOT_FOUND");
+        requireRole(newMandor, Role.MANDOR, "USER_NOT_MANDOR");
+
+        if (assignment.getMandor().getId().equals(newMandor.getId())) {
+            throw new RoleMismatchException("SAME_MANDOR");
+        }
+
+        UUID oldMandorId = assignment.getMandor().getId();
+        UUID buruhId = assignment.getBuruh().getId();
+        LocalDateTime reassignedAt = LocalDateTime.now();
+
+        assignment.setMandor(newMandor);
+        assignment.setReassignedAt(reassignedAt);
+        Assignment saved = assignmentRepository.save(assignment);
+
+        eventPublisher.publishEvent(new BuruhReassignedEvent(
+                saved.getId(), buruhId, oldMandorId, newMandor.getId(), reassignedAt
+        ));
+
+        return mapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
     public AssignmentResponse reassignBuruh(
             UUID assignmentId, ReassignmentRequest request, String adminId) {
         AuthUser admin = findUser(UUID.fromString(adminId), "Admin not found");

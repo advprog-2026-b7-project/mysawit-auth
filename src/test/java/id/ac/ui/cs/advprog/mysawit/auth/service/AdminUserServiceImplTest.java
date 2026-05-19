@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.mysawit.auth.service;
 
+import id.ac.ui.cs.advprog.mysawit.auth.dto.AdminUserDetailResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.AdminUserResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
@@ -16,11 +17,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
@@ -78,7 +81,7 @@ class AdminUserServiceImplTest {
     }
 
     @Test
-    void getUsers_shouldReturnNullMandorIdWhenMandorIsAbsent() {
+    void getUsers_shouldUseFindAllWhenNoFiltersAreApplied() {
         AuthUser user = AuthUser.builder()
                 .id(UUID.randomUUID())
                 .username("Admin")
@@ -89,12 +92,98 @@ class AdminUserServiceImplTest {
         Pageable pageable = PageRequest.of(0, 20);
         Page<AuthUser> pageResult = new PageImpl<>(List.of(user), pageable, 1);
 
-        when(authUserRepository.findUsersByFilters(null, null, null, pageable))
-                .thenReturn(pageResult);
+        when(authUserRepository.findAll(pageable)).thenReturn(pageResult);
 
         Page<AdminUserResponse> result = adminUserService.getUsers(null, null, null, pageable);
 
+        assertEquals(1, result.getTotalElements());
         assertNull(result.getContent().getFirst().getMandorId());
+        verify(authUserRepository).findAll(pageable);
+        verify(authUserRepository, never()).findUsersByFilters(null, null, null, pageable);
+    }
+
+    @Test
+    void getUserById_buruhUser_returnsMandorIdAndNoMandorCert() {
+        UUID mandorId = UUID.randomUUID();
+        AuthUser mandor = AuthUser.builder()
+                .id(mandorId).username("Mandor").email("m@example.com").role(Role.MANDOR).build();
+
+        UUID userId = UUID.randomUUID();
+        AuthUser user = AuthUser.builder()
+                .id(userId).username("alice").nama("Alice").email("alice@example.com")
+                .role(Role.BURUH).walletBalance(BigDecimal.TEN).mandor(mandor).build();
+
+        when(authUserRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        AdminUserDetailResponse result = adminUserService.getUserById(userId);
+
+        assertEquals(userId, result.getId());
+        assertEquals("alice@example.com", result.getEmail());
+        assertEquals(Role.BURUH, result.getRole());
+        assertEquals(BigDecimal.TEN, result.getWalletBalance());
+        assertEquals(mandorId, result.getMandorId());
+        assertNull(result.getMandorCertificationNumber());
+        assertNull(result.getKebunId());
+        assertNull(result.getKebunNama());
+    }
+
+    @Test
+    void getUserById_mandorUser_returnsCertAndNoMandorId() {
+        UUID userId = UUID.randomUUID();
+        AuthUser user = AuthUser.builder()
+                .id(userId).username("bob").nama("Bob").email("bob@example.com")
+                .role(Role.MANDOR).mandorCertificationNumber("CERT-001")
+                .walletBalance(BigDecimal.ZERO).build();
+
+        when(authUserRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        AdminUserDetailResponse result = adminUserService.getUserById(userId);
+
+        assertEquals("CERT-001", result.getMandorCertificationNumber());
+        assertNull(result.getMandorId());
+    }
+
+    @Test
+    void getUserById_buruhUserWithNoMandor_returnsNullMandorId() {
+        UUID userId = UUID.randomUUID();
+        AuthUser user = AuthUser.builder()
+                .id(userId).username("charlie").email("c@example.com")
+                .role(Role.BURUH).walletBalance(BigDecimal.ZERO).build();
+
+        when(authUserRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        AdminUserDetailResponse result = adminUserService.getUserById(userId);
+
+        assertNull(result.getMandorId());
+        assertNull(result.getMandorCertificationNumber());
+    }
+
+    @Test
+    void getUserById_walletBalanceNullDefaults_toZero() {
+        UUID userId = UUID.randomUUID();
+        AuthUser user = AuthUser.builder()
+                .id(userId).username("dave").email("d@example.com")
+                .role(Role.BURUH).walletBalance(null).build();
+
+        when(authUserRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        AdminUserDetailResponse result = adminUserService.getUserById(userId);
+
+        assertNotNull(result.getWalletBalance());
+        assertEquals(BigDecimal.ZERO, result.getWalletBalance());
+    }
+
+    @Test
+    void getUserById_notFound_throwsResponseStatusException() {
+        UUID userId = UUID.randomUUID();
+        when(authUserRepository.findById(userId)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> adminUserService.getUserById(userId)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
     }
 
     @Test

@@ -1,5 +1,7 @@
 package id.ac.ui.cs.advprog.mysawit.auth.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.*;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AuthUserService;
@@ -14,9 +16,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 @RestController
@@ -25,6 +28,7 @@ import java.util.Map;
 public class AuthUserController {
 
     private final AuthUserService authService;
+    private final ObjectMapper objectMapper;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
@@ -88,6 +92,21 @@ public class AuthUserController {
         }
     }
 
+    @PreAuthorize("isAuthenticated()")
+    @PatchMapping("/me")
+    public ResponseEntity<MeResponse> updateCurrentUser(
+            Authentication authentication,
+            @RequestBody JsonNode rawRequestBody) {
+
+        if (rawRequestBody.has("email")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "EMAIL_NOT_EDITABLE");
+        }
+
+        AuthUser tokenUser = extractTokenUser(authentication);
+        UpdateMeRequest request = objectMapper.convertValue(rawRequestBody, UpdateMeRequest.class);
+        return ResponseEntity.ok(authService.updateMe(tokenUser.getId().toString(), request));
+    }
+
     @GetMapping("/profile/{userId}")
     public ResponseEntity<?> getUserProfile(@PathVariable String userId) {
         try {
@@ -109,11 +128,24 @@ public class AuthUserController {
                 .username(user.getUsername())
                 .nama(user.getNama())
                 .role(user.getRole().toString())
+                .walletBalance(user.getWalletBalance() != null
+                        ? user.getWalletBalance()
+                        : BigDecimal.ZERO)
                 .mandorCertificationNumber(user.getMandorCertificationNumber())
                 .mandorId(mandorId)
                 .authProvider(user.getAuthProvider() != null
                         ? user.getAuthProvider().name() : "LOCAL")
                 .createdAt(user.getCreatedAt())
                 .build();
+    }
+
+    private AuthUser extractTokenUser(Authentication authentication) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof AuthUser tokenUser)) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "TOKEN_MISSING_OR_INVALID");
+        }
+        return tokenUser;
     }
 }

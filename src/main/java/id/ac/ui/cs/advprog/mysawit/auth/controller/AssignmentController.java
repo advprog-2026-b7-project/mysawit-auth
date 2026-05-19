@@ -83,10 +83,16 @@ public class AssignmentController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, String>> deleteAssignment(
+    public ResponseEntity<?> deleteAssignment(
             @PathVariable UUID id,
+            @RequestBody(required = false) DeleteAssignmentRequest request,
             Authentication authentication) {
         AuthUser caller = (AuthUser) authentication.getPrincipal();
+        if (request != null && request.getNewMandorId() != null) {
+            AssignmentResponse data =
+                    assignmentService.reassignOnDelete(id, caller, request.getNewMandorId());
+            return ResponseEntity.ok(ApiResponse.success(data));
+        }
         String message = assignmentService.deleteAssignment(id, caller);
         return ResponseEntity.ok(Map.of("message", message));
     }

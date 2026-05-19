@@ -5,7 +5,9 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.AuthResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.GoogleLoginRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.LoginRequest;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.MeResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.RegisterRequest;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.UpdateMeRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthProvider;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
@@ -349,6 +351,139 @@ class AuthServiceImplTest {
         verify(authUserValidator).validateGoogleRegistration(req);
     }
 
+
+    @Test
+    void updateMe_updateNama_success() {
+        UUID id = UUID.randomUUID();
+        AuthUser user = buildUser(id, Role.BURUH);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        UpdateMeRequest req = UpdateMeRequest.builder().nama("Updated Name").build();
+        MeResponse result = authService.updateMe(id.toString(), req);
+
+        assertEquals("Updated Name", result.getNama());
+    }
+
+    @Test
+    void updateMe_updateUsername_success() {
+        UUID id = UUID.randomUUID();
+        AuthUser user = buildUser(id, Role.BURUH);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(userRepository.findByUsername("newname")).thenReturn(Optional.empty());
+        when(userRepository.save(user)).thenReturn(user);
+
+        UpdateMeRequest req = UpdateMeRequest.builder().username("newname").build();
+        MeResponse result = authService.updateMe(id.toString(), req);
+
+        assertEquals("newname", result.getUsername());
+    }
+
+    @Test
+    void updateMe_duplicateUsername_throwsConflict() {
+        UUID id = UUID.randomUUID();
+        UUID otherId = UUID.randomUUID();
+        AuthUser user = buildUser(id, Role.BURUH);
+        AuthUser other = buildUser(otherId, Role.BURUH);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(userRepository.findByUsername("taken")).thenReturn(Optional.of(other));
+
+        UpdateMeRequest req = UpdateMeRequest.builder().username("taken").build();
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> authService.updateMe(id.toString(), req));
+
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, ex.getStatusCode());
+        assertEquals("USERNAME_ALREADY_EXISTS", ex.getReason());
+    }
+
+    @Test
+    void updateMe_changePassword_success() {
+        UUID id = UUID.randomUUID();
+        AuthUser user = buildUser(id, Role.BURUH);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("Pass1234!", user.getPassword())).thenReturn(true);
+        when(passwordEncoder.encode("NewPass1!")).thenReturn("newhashed");
+        when(userRepository.save(user)).thenReturn(user);
+
+        UpdateMeRequest req = UpdateMeRequest.builder()
+                .currentPassword("Pass1234!")
+                .newPassword("NewPass1!")
+                .build();
+        authService.updateMe(id.toString(), req);
+
+        verify(passwordEncoder).encode("NewPass1!");
+    }
+
+    @Test
+    void updateMe_wrongCurrentPassword_throwsBadRequest() {
+        UUID id = UUID.randomUUID();
+        AuthUser user = buildUser(id, Role.BURUH);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrong", user.getPassword())).thenReturn(false);
+
+        UpdateMeRequest req = UpdateMeRequest.builder()
+                .currentPassword("wrong")
+                .newPassword("NewPass1!")
+                .build();
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> authService.updateMe(id.toString(), req));
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("INVALID_CURRENT_PASSWORD", ex.getReason());
+    }
+
+    @Test
+    void updateMe_oauthUserCannotChangePassword_throwsBadRequest() {
+        UUID id = UUID.randomUUID();
+        AuthUser user = AuthUser.builder()
+                .id(id).username("alice").email("alice@example.com")
+                .role(Role.BURUH).authProvider(AuthProvider.GOOGLE).build();
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+
+        UpdateMeRequest req = UpdateMeRequest.builder()
+                .currentPassword("any")
+                .newPassword("NewPass1!")
+                .build();
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> authService.updateMe(id.toString(), req));
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("OAUTH_USER_CANNOT_CHANGE_PASSWORD", ex.getReason());
+    }
+
+    @Test
+    void updateMe_onlyCurrentPasswordProvided_throwsValidationFailed() {
+        UUID id = UUID.randomUUID();
+        AuthUser user = buildUser(id, Role.BURUH);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+
+        UpdateMeRequest req = UpdateMeRequest.builder()
+                .currentPassword("Pass1234!")
+                .build();
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> authService.updateMe(id.toString(), req));
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("VALIDATION_FAILED", ex.getReason());
+    }
+
+    @Test
+    void updateMe_weakNewPassword_throwsValidationFailed() {
+        UUID id = UUID.randomUUID();
+        AuthUser user = buildUser(id, Role.BURUH);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("Pass1234!", user.getPassword())).thenReturn(true);
+
+        UpdateMeRequest req = UpdateMeRequest.builder()
+                .currentPassword("Pass1234!")
+                .newPassword("weak")
+                .build();
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> authService.updateMe(id.toString(), req));
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("VALIDATION_FAILED", ex.getReason());
+    }
 
     @Test
     void getUserById_success() {

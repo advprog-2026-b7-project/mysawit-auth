@@ -103,7 +103,7 @@ class AssignmentControllerTest {
     }
 
     @Test
-    void createAssignment_withoutAuth_returns403() throws Exception {
+    void createAssignment_withoutAuth_returns401() throws Exception {
         UUID buruhId = UUID.randomUUID();
         UUID mandorId = UUID.randomUUID();
         CreateAssignmentRequest req = new CreateAssignmentRequest(buruhId, mandorId);
@@ -111,7 +111,7 @@ class AssignmentControllerTest {
         mockMvc.perform(post("/api/assignments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -146,9 +146,9 @@ class AssignmentControllerTest {
     }
 
     @Test
-    void getAllAssignments_withoutAuth_returns403() throws Exception {
+    void getAllAssignments_withoutAuth_returns401() throws Exception {
         mockMvc.perform(get("/api/assignments"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -255,6 +255,75 @@ class AssignmentControllerTest {
     }
 
     @Test
+    void deleteAssignment_withNewMandorId_returns200WithReassignedData() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID newMandorId = UUID.randomUUID();
+
+        AssignmentResponse resp = AssignmentResponse.builder()
+                .id(id)
+                .mandorId(newMandorId)
+                .assignedAt(LocalDateTime.now())
+                .reassignedAt(LocalDateTime.now())
+                .build();
+
+        when(assignmentService.reassignOnDelete(eq(id), any(AuthUser.class), eq(newMandorId)))
+                .thenReturn(resp);
+
+        mockMvc.perform(delete("/api/assignments/" + id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newMandorId\":\"" + newMandorId + "\"}")
+                        .with(authentication(buildAuth(UUID.randomUUID(), Role.ADMIN))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.data.mandorId").value(newMandorId.toString()));
+    }
+
+    @Test
+    void deleteAssignment_withNewMandorId_sameMandor_returns400() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID sameMandorId = UUID.randomUUID();
+
+        when(assignmentService.reassignOnDelete(eq(id), any(AuthUser.class), eq(sameMandorId)))
+                .thenThrow(new RoleMismatchException("SAME_MANDOR"));
+
+        mockMvc.perform(delete("/api/assignments/" + id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newMandorId\":\"" + sameMandorId + "\"}")
+                        .with(authentication(buildAuth(UUID.randomUUID(), Role.ADMIN))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deleteAssignment_withNewMandorId_notFound_returns404() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID newMandorId = UUID.randomUUID();
+
+        when(assignmentService.reassignOnDelete(eq(id), any(AuthUser.class), eq(newMandorId)))
+                .thenThrow(new AssignmentNotFoundException("Assignment not found"));
+
+        mockMvc.perform(delete("/api/assignments/" + id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newMandorId\":\"" + newMandorId + "\"}")
+                        .with(authentication(buildAuth(UUID.randomUUID(), Role.ADMIN))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteAssignment_withNullNewMandorId_fallsBackToPlainDelete() throws Exception {
+        UUID id = UUID.randomUUID();
+
+        when(assignmentService.deleteAssignment(eq(id), any(AuthUser.class)))
+                .thenReturn("Assignment deleted");
+
+        mockMvc.perform(delete("/api/assignments/" + id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newMandorId\":null}")
+                        .with(authentication(buildAuth(UUID.randomUUID(), Role.ADMIN))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Assignment deleted"));
+    }
+
+    @Test
     void deleteAssignment_asAdmin_returns200() throws Exception {
         UUID id = UUID.randomUUID();
 
@@ -304,7 +373,10 @@ class AssignmentControllerTest {
                 .reassignedAt(LocalDateTime.now())
                 .build();
 
-        when(assignmentService.reassignBuruh(eq(assignmentId), any(ReassignmentRequest.class), any()))
+        when(assignmentService.reassignBuruh(
+                eq(assignmentId),
+                any(ReassignmentRequest.class),
+                any()))
                 .thenReturn(resp);
 
         mockMvc.perform(post("/api/assignments/" + assignmentId + "/reassign")
@@ -333,7 +405,10 @@ class AssignmentControllerTest {
         UUID mandorId = UUID.randomUUID();
         ReassignmentRequest req = new ReassignmentRequest(mandorId);
 
-        when(assignmentService.reassignBuruh(eq(assignmentId), any(ReassignmentRequest.class), any()))
+        when(assignmentService.reassignBuruh(
+                eq(assignmentId),
+                any(ReassignmentRequest.class),
+                any()))
                 .thenThrow(new RoleMismatchException("Already assigned to this mandor"));
 
         mockMvc.perform(post("/api/assignments/" + assignmentId + "/reassign")
@@ -348,7 +423,10 @@ class AssignmentControllerTest {
         UUID assignmentId = UUID.randomUUID();
         ReassignmentRequest req = new ReassignmentRequest(UUID.randomUUID());
 
-        when(assignmentService.reassignBuruh(eq(assignmentId), any(ReassignmentRequest.class), any()))
+        when(assignmentService.reassignBuruh(
+                eq(assignmentId),
+                any(ReassignmentRequest.class),
+                any()))
                 .thenThrow(new AssignmentNotFoundException("Assignment not found"));
 
         mockMvc.perform(post("/api/assignments/" + assignmentId + "/reassign")

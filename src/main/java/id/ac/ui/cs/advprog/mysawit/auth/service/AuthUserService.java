@@ -3,7 +3,9 @@ package id.ac.ui.cs.advprog.mysawit.auth.service;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.AuthResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.GoogleLoginRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.LoginRequest;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.MeResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.RegisterRequest;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.UpdateMeRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 
 public interface AuthUserService {
@@ -11,4 +13,5 @@ public interface AuthUserService {
     AuthResponse login(LoginRequest request);
     AuthResponse googleLogin(GoogleLoginRequest request);
     AuthUser getUserById(String userId);
+    MeResponse updateMe(String userId, UpdateMeRequest request);
 }

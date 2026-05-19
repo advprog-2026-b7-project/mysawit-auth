@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.mysawit.auth.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 @Entity
@@ -40,6 +41,13 @@ public class AuthUser {
     @ManyToOne
     @JoinColumn(name = "mandor_id")
     private AuthUser mandor;
+
+    @Builder.Default
+    @Column(
+            name = "wallet_balance",
+            nullable = false,
+            columnDefinition = "numeric(19,2) default 0 not null")
+    private BigDecimal walletBalance = BigDecimal.ZERO;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.AuthResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.GoogleLoginRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.LoginRequest;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.MeResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.RegisterRequest;
+import id.ac.ui.cs.advprog.mysawit.auth.dto.UpdateMeRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthProvider;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
@@ -27,11 +29,13 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -56,7 +60,6 @@ class AuthUserControllerTest {
 
     @MockBean
     private AuthUserService authService;
-
 
     @Test
     void register_validBuruh_returns201() throws Exception {
@@ -169,8 +172,6 @@ class AuthUserControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // ── login ─────────────────────────────────────────────────────────────────
-
     @Test
     void login_validCredentials_returns200() throws Exception {
         LoginRequest req = LoginRequest.builder()
@@ -224,8 +225,6 @@ class AuthUserControllerTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    // ── google-login ──────────────────────────────────────────────────────────
-
     @Test
     void googleLogin_existingUser_returns200() throws Exception {
         GoogleLoginRequest req = GoogleLoginRequest.builder()
@@ -254,8 +253,6 @@ class AuthUserControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // ── logout ────────────────────────────────────────────────────────────────
-
     @Test
     void logout_withAuthentication_returns200() throws Exception {
         UUID userId = UUID.randomUUID();
@@ -270,15 +267,12 @@ class AuthUserControllerTest {
     }
 
     @Test
-    void logout_withoutAuthentication_returns403() throws Exception {
-        // MockMvc + anyRequest().permitAll() + @PreAuthorize → accessDeniedHandler fires → 403
+    void logout_withoutAuthentication_returns401() throws Exception {
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"some-token\"}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
-
-    // ── /me ───────────────────────────────────────────────────────────────────
 
     @Test
     void getMe_withAuthentication_returns200() throws Exception {
@@ -295,10 +289,9 @@ class AuthUserControllerTest {
     }
 
     @Test
-    void getMe_withoutAuthentication_returns403() throws Exception {
-        // MockMvc + anyRequest().permitAll() + @PreAuthorize → accessDeniedHandler fires → 403
+    void getMe_withoutAuthentication_returns401() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -313,7 +306,103 @@ class AuthUserControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // ── profile ───────────────────────────────────────────────────────────────
+    @Test
+    void updateMe_updateNama_returns200() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UpdateMeRequest req = UpdateMeRequest.builder().nama("New Name").build();
+
+        MeResponse resp = MeResponse.builder()
+                .id(userId.toString())
+                .email("buruh@test.com")
+                .username("buruh01")
+                .nama("New Name")
+                .role("BURUH")
+                .build();
+
+        when(authService.updateMe(eq(userId.toString()), any(UpdateMeRequest.class)))
+                .thenReturn(resp);
+
+        mockMvc.perform(patch("/api/auth/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req))
+                        .with(authentication(buildAuthentication(userId, Role.BURUH))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nama").value("New Name"));
+    }
+
+    @Test
+    void updateMe_emailFieldPresent_returns400() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        mockMvc.perform(patch("/api/auth/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"new@test.com\",\"nama\":\"Name\"}")
+                        .with(authentication(buildAuthentication(userId, Role.BURUH))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateMe_duplicateUsername_returns409() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UpdateMeRequest req = UpdateMeRequest.builder().username("taken").build();
+
+        when(authService.updateMe(eq(userId.toString()), any(UpdateMeRequest.class)))
+                .thenThrow(new ResponseStatusException(CONFLICT, "USERNAME_ALREADY_EXISTS"));
+
+        mockMvc.perform(patch("/api/auth/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req))
+                        .with(authentication(buildAuthentication(userId, Role.BURUH))))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void updateMe_wrongCurrentPassword_returns400() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UpdateMeRequest req = UpdateMeRequest.builder()
+                .currentPassword("wrong")
+                .newPassword("NewPass1!")
+                .build();
+
+        when(authService.updateMe(eq(userId.toString()), any(UpdateMeRequest.class)))
+                .thenThrow(new ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "INVALID_CURRENT_PASSWORD"));
+
+        mockMvc.perform(patch("/api/auth/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req))
+                        .with(authentication(buildAuthentication(userId, Role.BURUH))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateMe_oauthUserCannotChangePassword_returns400() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UpdateMeRequest req = UpdateMeRequest.builder()
+                .currentPassword("any")
+                .newPassword("NewPass1!")
+                .build();
+
+        when(authService.updateMe(eq(userId.toString()), any(UpdateMeRequest.class)))
+                .thenThrow(new ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "OAUTH_USER_CANNOT_CHANGE_PASSWORD"));
+
+        mockMvc.perform(patch("/api/auth/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req))
+                        .with(authentication(buildAuthentication(userId, Role.BURUH))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateMe_withoutAuthentication_returns401() throws Exception {
+        mockMvc.perform(patch("/api/auth/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nama\":\"Name\"}"))
+                .andExpect(status().isUnauthorized());
+    }
 
     @Test
     void getProfile_existingUser_returns200() throws Exception {
@@ -337,8 +426,6 @@ class AuthUserControllerTest {
         mockMvc.perform(get("/api/auth/profile/" + userId))
                 .andExpect(status().isNotFound());
     }
-
-    // ── helpers ───────────────────────────────────────────────────────────────
 
     private AuthUser buildAuthUser(UUID id, Role role) {
         return AuthUser.builder()

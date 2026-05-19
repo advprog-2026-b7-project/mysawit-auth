@@ -47,6 +47,11 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.success(pageResponse));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<?>> getUserById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(adminUserService.getUserById(id)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteUser(
             @PathVariable UUID id,

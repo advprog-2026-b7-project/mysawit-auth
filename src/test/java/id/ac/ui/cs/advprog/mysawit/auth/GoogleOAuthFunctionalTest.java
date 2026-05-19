@@ -71,7 +71,8 @@ class GoogleOAuthFunctionalTest {
         given().contentType(ContentType.JSON).body(regBody)
             .when().post("/api/auth/register").then().statusCode(201);
 
-        when(googleTokenVerifier.verify("valid-token")).thenReturn(buildPayload(email, "Google Test"));
+        when(googleTokenVerifier.verify("valid-token"))
+            .thenReturn(buildPayload(email, "Google Test"));
 
         given()
             .contentType(ContentType.JSON)
@@ -88,7 +89,8 @@ class GoogleOAuthFunctionalTest {
         String uid = UUID.randomUUID().toString();
         String email = "google-new-" + uid + "@gmail.com";
 
-        when(googleTokenVerifier.verify("new-user-token")).thenReturn(buildPayload(email, "New User"));
+        when(googleTokenVerifier.verify("new-user-token"))
+            .thenReturn(buildPayload(email, "New User"));
 
         given()
             .contentType(ContentType.JSON)
@@ -105,7 +107,8 @@ class GoogleOAuthFunctionalTest {
         String uid = UUID.randomUUID().toString();
         String email = "google-mandor-" + uid + "@gmail.com";
 
-        when(googleTokenVerifier.verify("mandor-token")).thenReturn(buildPayload(email, "Mandor Google"));
+        when(googleTokenVerifier.verify("mandor-token"))
+            .thenReturn(buildPayload(email, "Mandor Google"));
 
         given()
             .contentType(ContentType.JSON)
@@ -168,7 +171,8 @@ class GoogleOAuthFunctionalTest {
         String uid = UUID.randomUUID().toString();
         String email = "google-admin-" + uid + "@gmail.com";
 
-        when(googleTokenVerifier.verify("admin-token")).thenReturn(buildPayload(email, "Admin Attempt"));
+        when(googleTokenVerifier.verify("admin-token"))
+            .thenReturn(buildPayload(email, "Admin Attempt"));
 
         given()
             .contentType(ContentType.JSON)

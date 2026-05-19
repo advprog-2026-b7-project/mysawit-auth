@@ -13,6 +13,7 @@ import id.ac.ui.cs.advprog.mysawit.auth.exception.AssignmentForbiddenException;
 import id.ac.ui.cs.advprog.mysawit.auth.exception.AssignmentNotFoundException;
 import id.ac.ui.cs.advprog.mysawit.auth.exception.DuplicateAssignmentException;
 import id.ac.ui.cs.advprog.mysawit.auth.exception.RoleMismatchException;
+import id.ac.ui.cs.advprog.mysawit.auth.exception.UserNotFoundException;
 import id.ac.ui.cs.advprog.mysawit.auth.repository.AssignmentRepository;
 import id.ac.ui.cs.advprog.mysawit.auth.repository.AuthUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -352,6 +353,83 @@ class AssignmentServiceImplTest {
                 .isInstanceOf(AssignmentForbiddenException.class);
     }
 
+
+    @Test
+    void reassignOnDelete_success_updatesAssignmentAndPublishesEvent() {
+        UUID newMandorId = UUID.randomUUID();
+        AuthUser newMandor = AuthUser.builder().id(newMandorId).role(Role.MANDOR)
+                .username("newmandor").email("nm@test.com").build();
+
+        when(assignmentRepository.findById(assignmentId)).thenReturn(Optional.of(assignment));
+        doNothing().when(accessPolicy).checkDeleteAccess(admin, assignment);
+        when(authUserRepository.findById(newMandorId)).thenReturn(Optional.of(newMandor));
+        when(assignmentRepository.save(assignment)).thenReturn(assignment);
+        when(mapper.toResponse(assignment)).thenReturn(response);
+
+        AssignmentResponse result = service.reassignOnDelete(assignmentId, admin, newMandorId);
+
+        assertThat(result).isEqualTo(response);
+        assertThat(assignment.getMandor()).isEqualTo(newMandor);
+        assertThat(assignment.getReassignedAt()).isNotNull();
+        verify(eventPublisher).publishEvent(any(BuruhReassignedEvent.class));
+    }
+
+    @Test
+    void reassignOnDelete_assignmentNotFound_throws() {
+        when(assignmentRepository.findById(assignmentId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.reassignOnDelete(assignmentId, admin, UUID.randomUUID()))
+                .isInstanceOf(AssignmentNotFoundException.class)
+                .hasMessage("Assignment not found");
+    }
+
+    @Test
+    void reassignOnDelete_newMandorNotFound_throwsUserNotFound() {
+        UUID newMandorId = UUID.randomUUID();
+        when(assignmentRepository.findById(assignmentId)).thenReturn(Optional.of(assignment));
+        doNothing().when(accessPolicy).checkDeleteAccess(admin, assignment);
+        when(authUserRepository.findById(newMandorId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.reassignOnDelete(assignmentId, admin, newMandorId))
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessage("USER_NOT_FOUND");
+    }
+
+    @Test
+    void reassignOnDelete_newMandorWrongRole_throwsRoleMismatch() {
+        UUID newMandorId = UUID.randomUUID();
+        AuthUser notMandor = AuthUser.builder().id(newMandorId).role(Role.BURUH)
+                .username("b").email("b@test.com").build();
+
+        when(assignmentRepository.findById(assignmentId)).thenReturn(Optional.of(assignment));
+        doNothing().when(accessPolicy).checkDeleteAccess(admin, assignment);
+        when(authUserRepository.findById(newMandorId)).thenReturn(Optional.of(notMandor));
+
+        assertThatThrownBy(() -> service.reassignOnDelete(assignmentId, admin, newMandorId))
+                .isInstanceOf(RoleMismatchException.class)
+                .hasMessage("USER_NOT_MANDOR");
+    }
+
+    @Test
+    void reassignOnDelete_sameMandor_throwsRoleMismatch() {
+        when(assignmentRepository.findById(assignmentId)).thenReturn(Optional.of(assignment));
+        doNothing().when(accessPolicy).checkDeleteAccess(admin, assignment);
+        when(authUserRepository.findById(mandorId)).thenReturn(Optional.of(mandor));
+
+        assertThatThrownBy(() -> service.reassignOnDelete(assignmentId, admin, mandorId))
+                .isInstanceOf(RoleMismatchException.class)
+                .hasMessage("SAME_MANDOR");
+    }
+
+    @Test
+    void reassignOnDelete_accessDenied_throws() {
+        when(assignmentRepository.findById(assignmentId)).thenReturn(Optional.of(assignment));
+        doThrow(new AssignmentForbiddenException("Forbidden"))
+                .when(accessPolicy).checkDeleteAccess(buruh, assignment);
+
+        assertThatThrownBy(() -> service.reassignOnDelete(assignmentId, buruh, UUID.randomUUID()))
+                .isInstanceOf(AssignmentForbiddenException.class);
+    }
 
     @Test
     void reassignBuruh_success() {
