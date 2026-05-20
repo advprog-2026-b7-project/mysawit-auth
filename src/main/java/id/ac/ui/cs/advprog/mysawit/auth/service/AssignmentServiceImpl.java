@@ -55,7 +55,12 @@ public class AssignmentServiceImpl implements AssignmentService {
         }
 
         Assignment saved = assignmentRepository.save(
-                Assignment.builder().buruh(buruh).mandor(mandor).build()
+                Assignment.builder()
+                        .buruh(buruh)
+                        .mandor(mandor)
+                        .plantationId(request.getPlantationId() != null
+                                ? request.getPlantationId().toString() : null)
+                        .build()
         );
 
         eventPublisher.publishEvent(new BuruhAssignedEvent(

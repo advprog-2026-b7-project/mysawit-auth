@@ -18,6 +18,7 @@ public class AssignmentMapperImpl implements AssignmentMapper {
                 .buruhNama(displayName(assignment.getBuruh()))
                 .mandorId(assignment.getMandor().getId())
                 .mandorNama(displayName(assignment.getMandor()))
+                .plantationId(assignment.getPlantationId())
                 .assignedAt(assignment.getCreatedAt())
                 .reassignedAt(assignment.getReassignedAt())
                 .build();
