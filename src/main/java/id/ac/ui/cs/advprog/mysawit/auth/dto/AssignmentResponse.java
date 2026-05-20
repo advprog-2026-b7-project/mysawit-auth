@@ -14,6 +14,7 @@ public class AssignmentResponse {
     private String buruhNama;
     private UUID mandorId;
     private String mandorNama;
+    private String plantationId;
     private LocalDateTime assignedAt;
     private LocalDateTime reassignedAt;
 }

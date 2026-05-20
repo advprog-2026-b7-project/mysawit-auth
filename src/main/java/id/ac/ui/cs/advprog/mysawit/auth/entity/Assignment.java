@@ -27,6 +27,9 @@ public class Assignment {
     @JoinColumn(name = "mandor_id", nullable = false)
     private AuthUser mandor;
 
+    @Column(name = "plantation_id")
+    private String plantationId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

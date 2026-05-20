@@ -13,4 +13,5 @@ public class CreateAssignmentRequest {
     
     private UUID buruhId;
     private UUID mandorId;
+    private UUID plantationId;
 }
