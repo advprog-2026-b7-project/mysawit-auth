@@ -228,7 +228,7 @@ class AuthExtendedFunctionalTest {
     }
 
     @Test
-    void logout_withValidToken_returns401_dueToBug() {
+    void logout_withValidToken_returns200() {
         String token = loginAdmin();
 
         given()
@@ -238,7 +238,8 @@ class AuthExtendedFunctionalTest {
         .when()
             .post("/api/auth/logout")
         .then()
-            .statusCode(401);
+            .statusCode(200)
+            .body("message", equalTo("Logout successful"));
     }
 
     @Test
