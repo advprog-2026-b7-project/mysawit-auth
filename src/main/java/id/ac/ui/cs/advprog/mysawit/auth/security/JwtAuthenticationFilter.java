@@ -79,8 +79,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         return path.startsWith("/api/auth/register")
                 || path.startsWith("/api/auth/login")
-                || path.startsWith("/api/auth/google-login")
-                || path.startsWith("/api/auth/logout");
+                || path.startsWith("/api/auth/google-login");
     }
 
     private String extractToken(HttpServletRequest request) {
