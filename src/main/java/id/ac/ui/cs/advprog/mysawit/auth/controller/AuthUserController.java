@@ -4,17 +4,21 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.*;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
+import id.ac.ui.cs.advprog.mysawit.auth.security.JwtTokenProvider;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AuthUserService;
+import id.ac.ui.cs.advprog.mysawit.auth.service.TokenBlacklistService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.time.Instant;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -29,6 +34,8 @@ public class AuthUserController {
 
     private final AuthUserService authService;
     private final ObjectMapper objectMapper;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
@@ -57,12 +64,14 @@ public class AuthUserController {
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
             @Valid @RequestBody LogoutRequest request) {
-
-        SecurityContextHolder.clearContext();
-
-        return ResponseEntity.ok(Map.of(
-                "message", "Logout successful"
-        ));
+        try {
+            String jti = jwtTokenProvider.getJtiFromToken(request.getToken());
+            Instant expiresAt = jwtTokenProvider.getExpirationFromToken(request.getToken());
+            tokenBlacklistService.revoke(jti, expiresAt);
+        } catch (Exception e) {
+            log.warn("Token revocation skipped: {}", e.getMessage());
+        }
+        return ResponseEntity.ok(Map.of("message", "Logout successful"));
     }
 
     @PreAuthorize("isAuthenticated()")

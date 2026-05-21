@@ -2,6 +2,7 @@ package id.ac.ui.cs.advprog.mysawit.auth.security;
 
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
+import id.ac.ui.cs.advprog.mysawit.auth.service.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     protected void doFilterInternal(
@@ -36,17 +38,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
+        String token = extractToken(request);
+
+        if (token == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         try {
-            String token = extractToken(request);
+            if (!jwtTokenProvider.validateToken(token)) {
+                sendUnauthorized(response, "Invalid or expired token");
+                return;
+            }
 
-            if (token != null && jwtTokenProvider.validateToken(token)
-                    && SecurityContextHolder.getContext().getAuthentication() == null) {
+            String jti = jwtTokenProvider.getJtiFromToken(token);
+            if (jti != null && tokenBlacklistService.isRevoked(jti)) {
+                sendUnauthorized(response, "Token has been revoked");
+                return;
+            }
 
-                String userId   = jwtTokenProvider.getUserIdFromToken(token);
-                String email    = jwtTokenProvider.getEmailFromToken(token);
-                String role     = jwtTokenProvider.getRoleFromToken(token);
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                String userId = jwtTokenProvider.getUserIdFromToken(token);
+                String email = jwtTokenProvider.getEmailFromToken(token);
+                String role = jwtTokenProvider.getRoleFromToken(token);
                 String username = jwtTokenProvider.getUsernameFromToken(token);
-                String nama     = jwtTokenProvider.getNamaFromToken(token);
+                String nama = jwtTokenProvider.getNamaFromToken(token);
 
                 AuthUser principal = AuthUser.builder()
                         .id(UUID.fromString(userId))
@@ -60,15 +76,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         List.of(new SimpleGrantedAuthority("ROLE_" + role));
 
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                        new UsernamePasswordAuthenticationToken(
+                                principal, null, authorities);
 
-                var details = new WebAuthenticationDetailsSource().buildDetails(request);
-                authentication.setDetails(details);
+                authentication.setDetails(
+                        new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-
         } catch (Exception ex) {
             log.warn("JWT authentication failed: {}", ex.getMessage());
+            sendUnauthorized(response, "Invalid or expired token");
+            return;
         }
 
         filterChain.doFilter(request, response);
@@ -88,5 +106,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return bearer.substring(7);
         }
         return null;
+    }
+
+    private void sendUnauthorized(HttpServletResponse response, String message)
+            throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"message\":\"" + message + "\"}");
     }
 }

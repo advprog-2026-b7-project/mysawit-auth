@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -40,7 +41,17 @@ public class SecurityConfig {
                         .csrf(AbstractHttpConfigurer::disable)
                         .sessionManagement(s -> s.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS))
-                        .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                        .authorizeHttpRequests(auth -> auth
+                                .requestMatchers(
+                                        HttpMethod.POST,
+                                        "/api/auth/register",
+                                        "/api/auth/login",
+                                        "/api/auth/google-login").permitAll()
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/auth/profile/**").permitAll()
+                                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                                .anyRequest().authenticated())
                         .exceptionHandling(ex -> ex
                                 .authenticationEntryPoint((request, response, authEx) -> {
                                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
