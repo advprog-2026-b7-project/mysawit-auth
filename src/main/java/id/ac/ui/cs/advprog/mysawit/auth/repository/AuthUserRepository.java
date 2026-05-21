@@ -10,6 +10,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface AuthUserRepository
         extends JpaRepository<AuthUser, UUID>, JpaSpecificationExecutor<AuthUser> {
@@ -19,6 +22,10 @@ public interface AuthUserRepository
     boolean existsByEmail(String email);
     boolean existsByUsername(String username);
     boolean existsByMandorCertificationNumber(String mandorCertificationNumber);
+
+    @Modifying
+    @Query("UPDATE AuthUser u SET u.mandor = null WHERE u.mandor = :mandor")
+    void clearMandorReference(@Param("mandor") AuthUser mandor);
 
     default Page<AuthUser> findUsersByFilters(
             String name, String email, Role role, Pageable pageable) {

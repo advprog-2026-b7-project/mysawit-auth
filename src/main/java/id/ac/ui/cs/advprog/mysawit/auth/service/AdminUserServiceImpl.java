@@ -3,12 +3,14 @@ import id.ac.ui.cs.advprog.mysawit.auth.dto.AdminUserDetailResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.AdminUserResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
+import id.ac.ui.cs.advprog.mysawit.auth.repository.AssignmentRepository;
 import id.ac.ui.cs.advprog.mysawit.auth.repository.AuthUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -18,6 +20,7 @@ import java.util.UUID;
 public class AdminUserServiceImpl implements AdminUserService {
 
     private final AuthUserRepository userRepository;
+    private final AssignmentRepository assignmentRepository;
 
     @Override
     public Page<AdminUserResponse> getUsers(
@@ -41,14 +44,35 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
+    @Transactional
     public String deleteUser(UUID userId, UUID requesterId) {
         if (userId.equals(requesterId)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN, "Admin cannot delete their own account");
         }
+
         AuthUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "User not found"));
+
+        if (user.getRole() == Role.MANDOR) {
+            if (assignmentRepository.existsByMandorAndPlantationIdIsNotNull(user)) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Cannot delete mandor with active plantation assignments");
+            }
+            assignmentRepository.deleteAll(assignmentRepository.findByMandor(user));
+            userRepository.clearMandorReference(user);
+
+        } else if (user.getRole() == Role.BURUH) {
+            if (assignmentRepository.existsByBuruhAndPlantationIdIsNotNull(user)) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Cannot delete buruh with active plantation assignments");
+            }
+            assignmentRepository.deleteAll(assignmentRepository.findByBuruh(user));
+        }
+
         String email = user.getEmail();
         userRepository.delete(user);
         return "User " + email + " successfully deleted.";

@@ -6,7 +6,10 @@ import id.ac.ui.cs.advprog.mysawit.auth.dto.*;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.security.JwtTokenProvider;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AuthUserService;
+import id.ac.ui.cs.advprog.mysawit.auth.service.TokenBlacklistService;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +20,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+
+import java.time.Instant;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -36,6 +42,7 @@ public class AuthUserController {
     private final AuthUserService authService;
     private final ObjectMapper objectMapper;
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Value("${cookie.secure:false}")
     private boolean cookieSecure;
@@ -77,9 +84,37 @@ public class AuthUserController {
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
             @RequestBody(required = false) LogoutRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response) {
+        String token = extractTokenFromRequest(httpRequest);
+        if (token != null) {
+            try {
+                String jti = jwtTokenProvider.getJtiFromToken(token);
+                Instant expiresAt = jwtTokenProvider.getExpirationFromToken(token);
+                tokenBlacklistService.revoke(jti, expiresAt);
+            } catch (Exception ex) {
+                log.warn("Could not revoke token on logout: {}", ex.getMessage());
+            }
+        }
         response.addHeader(HttpHeaders.SET_COOKIE, buildClearCookie().toString());
         return ResponseEntity.ok(Map.of("message", "Logout successful"));
+    }
+
+    private String extractTokenFromRequest(HttpServletRequest request) {
+        String bearer = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (StringUtils.hasText(bearer) && bearer.startsWith("Bearer ")) {
+            return bearer.substring(7);
+        }
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("access_token".equals(cookie.getName())) {
+                    String value = cookie.getValue();
+                    return StringUtils.hasText(value) ? value : null;
+                }
+            }
+        }
+        return null;
     }
 
     @PreAuthorize("isAuthenticated()")

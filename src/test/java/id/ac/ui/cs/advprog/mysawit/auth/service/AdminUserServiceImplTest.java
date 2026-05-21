@@ -2,8 +2,10 @@ package id.ac.ui.cs.advprog.mysawit.auth.service;
 
 import id.ac.ui.cs.advprog.mysawit.auth.dto.AdminUserDetailResponse;
 import id.ac.ui.cs.advprog.mysawit.auth.dto.AdminUserResponse;
+import id.ac.ui.cs.advprog.mysawit.auth.entity.Assignment;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
+import id.ac.ui.cs.advprog.mysawit.auth.repository.AssignmentRepository;
 import id.ac.ui.cs.advprog.mysawit.auth.repository.AuthUserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +38,9 @@ class AdminUserServiceImplTest {
 
     @Mock
     private AuthUserRepository authUserRepository;
+
+    @Mock
+    private AssignmentRepository assignmentRepository;
 
     @InjectMocks
     private AdminUserServiceImpl adminUserService;
@@ -228,10 +233,130 @@ class AdminUserServiceImplTest {
                 .build();
 
         when(authUserRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(assignmentRepository.existsByBuruhAndPlantationIdIsNotNull(targetUser))
+                .thenReturn(false);
+        when(assignmentRepository.findByBuruh(targetUser)).thenReturn(List.of());
 
         String message = adminUserService.deleteUser(targetUserId, adminId);
 
+        verify(assignmentRepository).deleteAll(List.of());
         verify(authUserRepository).delete(targetUser);
         assertEquals("User target@example.com successfully deleted.", message);
+    }
+
+    @Test
+    void deleteUser_mandorWithAssignments_deletesAssignmentsAndClearsBuruhReference() {
+        UUID adminId = UUID.randomUUID();
+        UUID mandorUserId = UUID.randomUUID();
+        AuthUser mandor = AuthUser.builder()
+                .id(mandorUserId)
+                .username("mandor1")
+                .email("mandor1@example.com")
+                .role(Role.MANDOR)
+                .build();
+
+        AuthUser buruh1 = AuthUser.builder().id(UUID.randomUUID())
+                .username("b1").email("b1@example.com").role(Role.BURUH).mandor(mandor).build();
+        AuthUser buruh2 = AuthUser.builder().id(UUID.randomUUID())
+                .username("b2").email("b2@example.com").role(Role.BURUH).mandor(mandor).build();
+
+        Assignment a1 = Assignment.builder().id(UUID.randomUUID())
+                .buruh(buruh1).mandor(mandor).build();
+        Assignment a2 = Assignment.builder().id(UUID.randomUUID())
+                .buruh(buruh2).mandor(mandor).build();
+
+        when(authUserRepository.findById(mandorUserId)).thenReturn(Optional.of(mandor));
+        when(assignmentRepository.existsByMandorAndPlantationIdIsNotNull(mandor))
+                .thenReturn(false);
+        when(assignmentRepository.findByMandor(mandor)).thenReturn(List.of(a1, a2));
+
+        String message = adminUserService.deleteUser(mandorUserId, adminId);
+
+        verify(assignmentRepository).deleteAll(List.of(a1, a2));
+        verify(authUserRepository).clearMandorReference(mandor);
+        verify(authUserRepository).delete(mandor);
+        assertEquals("User mandor1@example.com successfully deleted.", message);
+    }
+
+    @Test
+    void deleteUser_buruhWithAssignment_deletesAssignmentThenUser() {
+        UUID adminId = UUID.randomUUID();
+        UUID buruhId = UUID.randomUUID();
+        AuthUser mandor = AuthUser.builder().id(UUID.randomUUID())
+                .username("m").email("m@example.com").role(Role.MANDOR).build();
+        AuthUser buruh = AuthUser.builder()
+                .id(buruhId)
+                .username("worker")
+                .email("worker@example.com")
+                .role(Role.BURUH)
+                .mandor(mandor)
+                .build();
+        Assignment assignment = Assignment.builder()
+                .id(UUID.randomUUID()).buruh(buruh).mandor(mandor).build();
+
+        when(authUserRepository.findById(buruhId)).thenReturn(Optional.of(buruh));
+        when(assignmentRepository.existsByBuruhAndPlantationIdIsNotNull(buruh))
+                .thenReturn(false);
+        when(assignmentRepository.findByBuruh(buruh)).thenReturn(List.of(assignment));
+
+        String message = adminUserService.deleteUser(buruhId, adminId);
+
+        verify(assignmentRepository).deleteAll(List.of(assignment));
+        verify(authUserRepository).delete(buruh);
+        assertEquals("User worker@example.com successfully deleted.", message);
+    }
+
+    @Test
+    void deleteUser_mandorWithActivePlantation_throws409() {
+        UUID adminId = UUID.randomUUID();
+        UUID mandorId = UUID.randomUUID();
+        AuthUser mandor = AuthUser.builder()
+                .id(mandorId)
+                .username("activeMandor")
+                .email("am@example.com")
+                .role(Role.MANDOR)
+                .build();
+
+        when(authUserRepository.findById(mandorId)).thenReturn(Optional.of(mandor));
+        when(assignmentRepository.existsByMandorAndPlantationIdIsNotNull(mandor))
+                .thenReturn(true);
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> adminUserService.deleteUser(mandorId, adminId)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(assignmentRepository, never()).deleteAll(
+                org.mockito.ArgumentMatchers.anyList());
+        verify(authUserRepository, never()).delete(
+                org.mockito.ArgumentMatchers.any(AuthUser.class));
+    }
+
+    @Test
+    void deleteUser_buruhWithActivePlantation_throws409() {
+        UUID adminId = UUID.randomUUID();
+        UUID buruhId = UUID.randomUUID();
+        AuthUser buruh = AuthUser.builder()
+                .id(buruhId)
+                .username("activeBuruh")
+                .email("ab@example.com")
+                .role(Role.BURUH)
+                .build();
+
+        when(authUserRepository.findById(buruhId)).thenReturn(Optional.of(buruh));
+        when(assignmentRepository.existsByBuruhAndPlantationIdIsNotNull(buruh))
+                .thenReturn(true);
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> adminUserService.deleteUser(buruhId, adminId)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(assignmentRepository, never()).deleteAll(
+                org.mockito.ArgumentMatchers.anyList());
+        verify(authUserRepository, never()).delete(
+                org.mockito.ArgumentMatchers.any(AuthUser.class));
     }
 }

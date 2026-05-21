@@ -10,8 +10,10 @@ import id.ac.ui.cs.advprog.mysawit.auth.dto.UpdateMeRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthProvider;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
+import id.ac.ui.cs.advprog.mysawit.auth.repository.AuthUserRepository;
 import id.ac.ui.cs.advprog.mysawit.auth.security.JwtTokenProvider;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AuthUserService;
+import id.ac.ui.cs.advprog.mysawit.auth.service.TokenBlacklistService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +66,12 @@ class AuthUserControllerTest {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private TokenBlacklistService tokenBlacklistService;
+
+    @Autowired
+    private AuthUserRepository authUserRepository;
 
     @MockBean
     private AuthUserService authService;
@@ -357,6 +365,65 @@ class AuthUserControllerTest {
     }
 
     @Test
+    void logout_withBearerToken_revokesJti() throws Exception {
+        AuthUser user = saveUser(UUID.randomUUID(), "logout-bearer@test.com", Role.BURUH);
+        String token = jwtTokenProvider.generateToken(
+                user.getId().toString(), "user@test.com", "BURUH", "user01", "User One");
+        String jti = jwtTokenProvider.getJtiFromToken(token);
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Logout successful"));
+
+        assertThat(tokenBlacklistService.isRevoked(jti)).isTrue();
+    }
+
+    @Test
+    void logout_withCookie_revokesJti() throws Exception {
+        AuthUser user = saveUser(UUID.randomUUID(), "logout-cookie@test.com", Role.BURUH);
+        String token = jwtTokenProvider.generateToken(
+                user.getId().toString(), "user@test.com", "BURUH", "user02", "User Two");
+        String jti = jwtTokenProvider.getJtiFromToken(token);
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .cookie(new Cookie("access_token", token)))
+                .andExpect(status().isOk());
+
+        assertThat(tokenBlacklistService.isRevoked(jti)).isTrue();
+    }
+
+    @Test
+    void logout_revokedToken_rejectsSubsequentRequest() throws Exception {
+        AuthUser user = saveUser(UUID.randomUUID(), "logout-revoked@test.com", Role.BURUH);
+        String token = jwtTokenProvider.generateToken(
+                user.getId().toString(), "user@test.com", "BURUH", "user03", "User Three");
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void jwtForDeletedUser_rejectsSubsequentRequest() throws Exception {
+        AuthUser user = saveUser(UUID.randomUUID(), "deleted-token@test.com", Role.BURUH);
+        String token = jwtTokenProvider.generateToken(
+                user.getId().toString(), user.getEmail(),
+                "BURUH", user.getUsername(), user.getNama());
+
+        authUserRepository.delete(user);
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("User token has been revoked"));
+    }
+
+    @Test
     void getMe_withAuthentication_returns200() throws Exception {
         UUID userId = UUID.randomUUID();
         AuthUser user = buildAuthUser(userId, Role.BURUH);
@@ -374,11 +441,12 @@ class AuthUserControllerTest {
     void getMe_withCookieOnly_returns200() throws Exception {
         UUID userId = UUID.randomUUID();
         AuthUser user = buildAuthUser(userId, Role.BURUH);
+        AuthUser savedUser = authUserRepository.save(user);
 
         String token = jwtTokenProvider.generateToken(
-                userId.toString(), "buruh@test.com", "BURUH", "buruh01", "Buruh Satu");
+                savedUser.getId().toString(), "buruh@test.com", "BURUH", "buruh01", "Buruh Satu");
 
-        when(authService.getUserById(userId.toString())).thenReturn(user);
+        when(authService.getUserById(savedUser.getId().toString())).thenReturn(savedUser);
 
         mockMvc.perform(get("/api/auth/me")
                         .cookie(new Cookie("access_token", token)))
@@ -535,6 +603,19 @@ class AuthUserControllerTest {
                 .authProvider(AuthProvider.LOCAL)
                 .createdAt(LocalDateTime.now())
                 .build();
+    }
+
+    private AuthUser saveUser(UUID id, String email, Role role) {
+        AuthUser user = AuthUser.builder()
+                .id(id)
+                .username(email.substring(0, email.indexOf('@')))
+                .nama("Token User")
+                .email(email)
+                .password("encoded")
+                .role(role)
+                .authProvider(AuthProvider.LOCAL)
+                .build();
+        return authUserRepository.save(user);
     }
 
     private Authentication buildAuthentication(UUID userId, Role role) {

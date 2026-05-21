@@ -139,10 +139,16 @@ class AssignmentControllerTest {
                 .thenReturn(page);
 
         mockMvc.perform(get("/api/assignments")
+                        .param("page", "0")
+                        .param("size", "20")
                         .with(authentication(buildAuth(UUID.randomUUID(), Role.ADMIN))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
-                .andExpect(jsonPath("$.data.content").isArray());
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.page").value(0))
+                .andExpect(jsonPath("$.data.size").value(20))
+                .andExpect(jsonPath("$.data.totalElements").value(0))
+                .andExpect(jsonPath("$.data.totalPages").value(0));
     }
 
     @Test

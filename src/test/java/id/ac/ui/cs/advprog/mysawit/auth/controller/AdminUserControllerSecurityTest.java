@@ -86,7 +86,10 @@ class AdminUserControllerSecurityTest {
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.data.content[0].email").value("alice@example.com"))
                 .andExpect(jsonPath("$.data.content[0].username").value("Alice"))
-                .andExpect(jsonPath("$.data.totalElements").value(1));
+                .andExpect(jsonPath("$.data.page").value(0))
+                .andExpect(jsonPath("$.data.size").value(20))
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.totalPages").value(1));
 
         verify(adminUserService).getUsers(
                 eq("ali"), eq("example"), eq(Role.MANDOR), any(Pageable.class));

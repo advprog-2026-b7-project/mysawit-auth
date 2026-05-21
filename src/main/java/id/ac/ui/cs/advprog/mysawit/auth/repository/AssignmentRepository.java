@@ -17,4 +17,8 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     Page<Assignment> findByMandor(AuthUser mandor, Pageable pageable);
     Page<Assignment> findByBuruh(AuthUser buruh, Pageable pageable);
     List<Assignment> findByMandor(AuthUser mandor);
+
+    boolean existsByMandorAndPlantationIdIsNotNull(AuthUser mandor);
+
+    boolean existsByBuruhAndPlantationIdIsNotNull(AuthUser buruh);
 }

@@ -1,7 +1,7 @@
 package id.ac.ui.cs.advprog.mysawit.auth.security;
 
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
-import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
+import id.ac.ui.cs.advprog.mysawit.auth.repository.AuthUserRepository;
 import id.ac.ui.cs.advprog.mysawit.auth.service.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -31,6 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenBlacklistService tokenBlacklistService;
+    private final AuthUserRepository authUserRepository;
 
     @Override
     protected void doFilterInternal(
@@ -60,21 +61,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
                 String userId = jwtTokenProvider.getUserIdFromToken(token);
-                String email = jwtTokenProvider.getEmailFromToken(token);
-                String role = jwtTokenProvider.getRoleFromToken(token);
-                String username = jwtTokenProvider.getUsernameFromToken(token);
-                String nama = jwtTokenProvider.getNamaFromToken(token);
-
-                AuthUser principal = AuthUser.builder()
-                        .id(UUID.fromString(userId))
-                        .email(email)
-                        .username(username)
-                        .nama(nama)
-                        .role(Role.valueOf(role))
-                        .build();
+                AuthUser principal = authUserRepository.findById(UUID.fromString(userId))
+                        .orElse(null);
+                if (principal == null) {
+                    sendUnauthorized(response, "User token has been revoked");
+                    return;
+                }
 
                 List<SimpleGrantedAuthority> authorities =
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                        List.of(new SimpleGrantedAuthority("ROLE_" + principal.getRole().name()));
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
