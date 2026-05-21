@@ -78,7 +78,7 @@ class AssignmentControllerTest {
         when(assignmentService.createAssignment(any(CreateAssignmentRequest.class), any()))
                 .thenReturn(resp);
 
-        CreateAssignmentRequest req = new CreateAssignmentRequest(buruhId, mandorId);
+        CreateAssignmentRequest req = new CreateAssignmentRequest(buruhId, mandorId, null);
 
         mockMvc.perform(post("/api/assignments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -93,7 +93,7 @@ class AssignmentControllerTest {
     void createAssignment_asBuruh_returns403() throws Exception {
         UUID buruhId = UUID.randomUUID();
         UUID mandorId = UUID.randomUUID();
-        CreateAssignmentRequest req = new CreateAssignmentRequest(buruhId, mandorId);
+        CreateAssignmentRequest req = new CreateAssignmentRequest(buruhId, mandorId, null);
 
         mockMvc.perform(post("/api/assignments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -106,7 +106,7 @@ class AssignmentControllerTest {
     void createAssignment_withoutAuth_returns401() throws Exception {
         UUID buruhId = UUID.randomUUID();
         UUID mandorId = UUID.randomUUID();
-        CreateAssignmentRequest req = new CreateAssignmentRequest(buruhId, mandorId);
+        CreateAssignmentRequest req = new CreateAssignmentRequest(buruhId, mandorId, null);
 
         mockMvc.perform(post("/api/assignments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -118,7 +118,7 @@ class AssignmentControllerTest {
     void createAssignment_duplicateBuruh_returns409() throws Exception {
         UUID buruhId = UUID.randomUUID();
         UUID mandorId = UUID.randomUUID();
-        CreateAssignmentRequest req = new CreateAssignmentRequest(buruhId, mandorId);
+        CreateAssignmentRequest req = new CreateAssignmentRequest(buruhId, mandorId, null);
 
         when(assignmentService.createAssignment(any(), any()))
                 .thenThrow(new DuplicateAssignmentException("Buruh already assigned"));
