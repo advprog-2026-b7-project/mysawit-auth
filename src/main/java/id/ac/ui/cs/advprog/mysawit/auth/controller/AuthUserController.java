@@ -6,16 +6,17 @@ import id.ac.ui.cs.advprog.mysawit.auth.dto.*;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.security.JwtTokenProvider;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AuthUserService;
-import id.ac.ui.cs.advprog.mysawit.auth.service.TokenBlacklistService;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-
-import java.time.Instant;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -35,42 +36,49 @@ public class AuthUserController {
     private final AuthUserService authService;
     private final ObjectMapper objectMapper;
     private final JwtTokenProvider jwtTokenProvider;
-    private final TokenBlacklistService tokenBlacklistService;
+
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${jwt.expiration:3600000}")
+    private long jwtExpirationMs;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
-            @Valid @RequestBody RegisterRequest request) {
-        AuthResponse response = authService.register(request);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
+            @Valid @RequestBody RegisterRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authService.register(request);
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                buildAuthCookie(authResponse.getToken()).toString());
+        return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
     }
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
-            @Valid @RequestBody LoginRequest request) {
-        AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(response);
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authService.login(request);
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                buildAuthCookie(authResponse.getToken()).toString());
+        return ResponseEntity.ok(authResponse);
     }
 
     @PostMapping("/google-login")
     public ResponseEntity<AuthResponse> googleLogin(
-            @Valid @RequestBody GoogleLoginRequest request) {
-        AuthResponse response = authService.googleLogin(request);
-        return ResponseEntity.ok(response);
+            @Valid @RequestBody GoogleLoginRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authService.googleLogin(request);
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                buildAuthCookie(authResponse.getToken()).toString());
+        return ResponseEntity.ok(authResponse);
     }
 
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
-            @Valid @RequestBody LogoutRequest request) {
-        try {
-            String jti = jwtTokenProvider.getJtiFromToken(request.getToken());
-            Instant expiresAt = jwtTokenProvider.getExpirationFromToken(request.getToken());
-            tokenBlacklistService.revoke(jti, expiresAt);
-        } catch (Exception e) {
-            log.warn("Token revocation skipped: {}", e.getMessage());
-        }
+            @RequestBody(required = false) LogoutRequest request,
+            HttpServletResponse response) {
+        response.addHeader(HttpHeaders.SET_COOKIE, buildClearCookie().toString());
         return ResponseEntity.ok(Map.of("message", "Logout successful"));
     }
 
@@ -92,8 +100,8 @@ public class AuthUserController {
 
         try {
             AuthUser user = authService.getUserById(tokenUser.getId().toString());
-            MeResponse response = buildMeResponse(user);
-            return ResponseEntity.ok(response);
+            MeResponse meResponse = buildMeResponse(user);
+            return ResponseEntity.ok(meResponse);
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.NOT_FOUND)
@@ -120,8 +128,8 @@ public class AuthUserController {
     public ResponseEntity<?> getUserProfile(@PathVariable String userId) {
         try {
             AuthUser user = authService.getUserById(userId);
-            MeResponse response = buildMeResponse(user);
-            return ResponseEntity.ok(response);
+            MeResponse meResponse = buildMeResponse(user);
+            return ResponseEntity.ok(meResponse);
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.NOT_FOUND)
@@ -129,8 +137,29 @@ public class AuthUserController {
         }
     }
 
+    private ResponseCookie buildAuthCookie(String token) {
+        return ResponseCookie.from("access_token", token)
+                .httpOnly(true)
+                .path("/")
+                .maxAge(jwtExpirationMs / 1000)
+                .sameSite("Lax")
+                .secure(cookieSecure)
+                .build();
+    }
+
+    private ResponseCookie buildClearCookie() {
+        return ResponseCookie.from("access_token", "")
+                .httpOnly(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .secure(cookieSecure)
+                .build();
+    }
+
     private MeResponse buildMeResponse(AuthUser user) {
-        String mandorId = user.getMandor() != null ? user.getMandor().getId().toString() : null;
+        String mandorId = user.getMandor() != null
+                ? user.getMandor().getId().toString() : null;
         return MeResponse.builder()
                 .id(user.getId().toString())
                 .email(user.getEmail())

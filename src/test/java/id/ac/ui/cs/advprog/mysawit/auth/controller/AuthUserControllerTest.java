@@ -10,7 +10,9 @@ import id.ac.ui.cs.advprog.mysawit.auth.dto.UpdateMeRequest;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthProvider;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.AuthUser;
 import id.ac.ui.cs.advprog.mysawit.auth.entity.Role;
+import id.ac.ui.cs.advprog.mysawit.auth.security.JwtTokenProvider;
 import id.ac.ui.cs.advprog.mysawit.auth.service.AuthUserService;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -28,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -37,6 +40,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -57,6 +61,9 @@ class AuthUserControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
 
     @MockBean
     private AuthUserService authService;
@@ -85,6 +92,38 @@ class AuthUserControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.token").value("tok"));
+    }
+
+    @Test
+    void register_setsAccessTokenCookie() throws Exception {
+        RegisterRequest req = RegisterRequest.builder()
+                .username("buruh01")
+                .nama("Buruh Satu")
+                .email("buruh01@test.com")
+                .password("Pass1234!")
+                .role(Role.BURUH)
+                .build();
+
+        AuthResponse resp = AuthResponse.builder()
+                .token("tok")
+                .id(UUID.randomUUID().toString())
+                .email("buruh01@test.com")
+                .role("BURUH")
+                .build();
+
+        when(authService.register(any(RegisterRequest.class))).thenReturn(resp);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(header().exists("Set-Cookie"))
+                .andExpect(result -> {
+                    String setCookie = result.getResponse().getHeader("Set-Cookie");
+                    assertThat(setCookie).contains("access_token=tok");
+                    assertThat(setCookie).contains("HttpOnly");
+                    assertThat(setCookie).contains("Path=/");
+                });
     }
 
     @Test
@@ -194,6 +233,33 @@ class AuthUserControllerTest {
     }
 
     @Test
+    void login_setsAccessTokenCookie() throws Exception {
+        LoginRequest req = LoginRequest.builder()
+                .email("admin@mysawit.com")
+                .password("Admin1234!")
+                .build();
+
+        AuthResponse resp = AuthResponse.builder()
+                .token("adminTok")
+                .role("ADMIN")
+                .build();
+
+        when(authService.login(any(LoginRequest.class))).thenReturn(resp);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(header().exists("Set-Cookie"))
+                .andExpect(result -> {
+                    String setCookie = result.getResponse().getHeader("Set-Cookie");
+                    assertThat(setCookie).contains("access_token=adminTok");
+                    assertThat(setCookie).contains("HttpOnly");
+                    assertThat(setCookie).contains("Path=/");
+                });
+    }
+
+    @Test
     void login_wrongPassword_returns401() throws Exception {
         LoginRequest req = LoginRequest.builder()
                 .email("admin@mysawit.com")
@@ -267,6 +333,22 @@ class AuthUserControllerTest {
     }
 
     @Test
+    void logout_clearsCookie() throws Exception {
+        UUID userId = UUID.randomUUID();
+        Authentication auth = buildAuthentication(userId, Role.BURUH);
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(header().exists("Set-Cookie"))
+                .andExpect(result -> {
+                    String setCookie = result.getResponse().getHeader("Set-Cookie");
+                    assertThat(setCookie).contains("access_token=");
+                    assertThat(setCookie).contains("Max-Age=0");
+                });
+    }
+
+    @Test
     void logout_withoutAuthentication_returns401() throws Exception {
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -286,6 +368,22 @@ class AuthUserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("buruh@test.com"))
                 .andExpect(jsonPath("$.id").value(userId.toString()));
+    }
+
+    @Test
+    void getMe_withCookieOnly_returns200() throws Exception {
+        UUID userId = UUID.randomUUID();
+        AuthUser user = buildAuthUser(userId, Role.BURUH);
+
+        String token = jwtTokenProvider.generateToken(
+                userId.toString(), "buruh@test.com", "BURUH", "buruh01", "Buruh Satu");
+
+        when(authService.getUserById(userId.toString())).thenReturn(user);
+
+        mockMvc.perform(get("/api/auth/me")
+                        .cookie(new Cookie("access_token", token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("buruh@test.com"));
     }
 
     @Test
