@@ -43,37 +43,40 @@ public class SecurityConfig {
         public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
                 http.cors(Customizer.withDefaults())
-                        .csrf(AbstractHttpConfigurer::disable)
-                        .sessionManagement(s -> s.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS))
-                        .authorizeHttpRequests(auth -> auth
-                                .requestMatchers(
-                                        HttpMethod.POST,
-                                        "/api/auth/register",
-                                        "/api/auth/login",
-                                        "/api/auth/google-login").permitAll()
-                                .requestMatchers(
-                                        HttpMethod.GET,
-                                        "/api/auth/profile/**").permitAll()
-                                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                                .anyRequest().authenticated())
-                        .exceptionHandling(ex -> ex
-                                .authenticationEntryPoint((request, response, authEx) -> {
-                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                                        response.setContentType("application/json");
-                                        response.getWriter().write(
-                                                "{\"message\":\"Unauthorized: "
-                                                + authEx.getMessage() + "\"}");
-                                })
-                                .accessDeniedHandler((request, response, accessEx) -> {
-                                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                                        response.setContentType("application/json");
-                                        response.getWriter().write(
-                                                "{\"message\":\"Forbidden: "
-                                                + "insufficient permissions\"}");
-                                }))
-                        .addFilterBefore(jwtAuthenticationFilter,
-                                UsernamePasswordAuthenticationFilter.class);
+                                .csrf(AbstractHttpConfigurer::disable)
+                                .sessionManagement(s -> s.sessionCreationPolicy(
+                                                SessionCreationPolicy.STATELESS))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                                .requestMatchers(
+                                                                HttpMethod.POST,
+                                                                "/api/auth/register",
+                                                                "/api/auth/login",
+                                                                "/api/auth/google-login")
+                                                .permitAll()
+                                                .requestMatchers(
+                                                                HttpMethod.GET,
+                                                                "/api/auth/profile/**")
+                                                .permitAll()
+                                                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                                                .anyRequest().authenticated())
+                                .exceptionHandling(ex -> ex
+                                                .authenticationEntryPoint((request, response, authEx) -> {
+                                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                                        response.setContentType("application/json");
+                                                        response.getWriter().write(
+                                                                        "{\"message\":\"Unauthorized: "
+                                                                                        + authEx.getMessage() + "\"}");
+                                                })
+                                                .accessDeniedHandler((request, response, accessEx) -> {
+                                                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                                        response.setContentType("application/json");
+                                                        response.getWriter().write(
+                                                                        "{\"message\":\"Forbidden: "
+                                                                                        + "insufficient permissions\"}");
+                                                }))
+                                .addFilterBefore(jwtAuthenticationFilter,
+                                                UsernamePasswordAuthenticationFilter.class);
                 return http.build();
         }
 
@@ -81,9 +84,9 @@ public class SecurityConfig {
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration configuration = new CorsConfiguration();
                 configuration.setAllowedOrigins(
-                        Arrays.asList(allowedOriginsConfig.split(",")));
+                                Arrays.asList(allowedOriginsConfig.split(",")));
                 configuration.setAllowedMethods(
-                        List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+                                List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
                 configuration.setAllowedHeaders(List.of("*"));
                 configuration.setAllowCredentials(true);
 
