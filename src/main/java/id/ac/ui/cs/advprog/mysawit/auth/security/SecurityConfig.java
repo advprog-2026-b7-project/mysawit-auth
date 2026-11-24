@@ -48,6 +48,7 @@ public class SecurityConfig {
                                                 SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                                .requestMatchers("/error").permitAll()
                                                 .requestMatchers(
                                                                 HttpMethod.POST,
                                                                 "/api/auth/register",
